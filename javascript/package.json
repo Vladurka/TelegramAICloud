@@ -7,14 +7,18 @@
     "start": "node index.js"
   },
   "keywords": [],
+  "type": "module",
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "body-parser": "^2.2.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.0",
     "express": "^5.1.0",
+    "input": "^1.0.1",
     "mongoose": "^8.16.3",
-    "nodemon": "^3.1.10"
+    "nodemon": "^3.1.10",
+    "telegram": "^2.26.22"
   }
 }
