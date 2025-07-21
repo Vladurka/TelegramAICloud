@@ -56,8 +56,6 @@ class TelegramAIAgent:
         if not self.is_active:
             return
 
-        sender = await event.get_sender()
-        name = sender.first_name or "User"
         message = event.raw_text.strip()
 
         try:
@@ -72,6 +70,7 @@ class TelegramAIAgent:
                 max_tokens=200,
             )
             reply = response.choices[0].message.content.strip()
+            
 
         except Exception as e:
             print(f"OpenAI Error: {e}")
