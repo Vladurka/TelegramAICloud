@@ -1,5 +1,5 @@
 import { connectRabbitMQ } from "./src/lib/rabbitmq.js";
-import { connectDB } from "./lib/db.js";
+import { connectDB } from "./src/lib/db.js";
 import { clerkMiddleware } from "@clerk/express";
 import express from "express";
 import dotenv from "dotenv";

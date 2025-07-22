@@ -1,5 +1,7 @@
 import os
+import sys
 import asyncio
+import logging
 from dotenv import load_dotenv
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
@@ -8,6 +10,13 @@ from telethon.errors import FloodWaitError
 import openai
 
 load_dotenv()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+logger = logging.getLogger(__name__)
 
 class TelegramAIAgent:
     def __init__(self):
@@ -49,15 +58,22 @@ class TelegramAIAgent:
             if text in ["/stop", "stop"]:
                 self.is_active = False
                 await event.reply("🤖 Assistant stopped. Send /start to activate.")
+                logger.info("Assistant stopped by user command.")
             elif text in ["/start", "start"]:
                 self.is_active = True
                 await event.reply("🤖 Assistant started. Ready to help. Send /stop to deactivate.")
+                logger.info("Assistant started by user command.")
 
     async def on_new_message(self, event):
         if not self.is_active:
             return
 
         message = event.raw_text.strip()
+        sender = await event.get_sender()
+        sender_name = getattr(sender, 'username', None) or getattr(sender, 'first_name', 'Unknown')
+        sender_id = sender.id if sender else "Unknown"
+
+        logger.info(f"[📩] Message from {sender_name} (ID: {sender_id}): {message}")
 
         try:
             context = await self.build_context(event)
@@ -73,25 +89,27 @@ class TelegramAIAgent:
             reply = response.choices[0].message.content.strip()
 
         except Exception as e:
-            print(f"OpenAI Error: {e}")
+            logger.error(f"OpenAI Error: {e}")
             reply = f"❌ Error: {e}"
-
-        sleep_duration = min(self.typing_time * len(reply), 120)
-        await self.client.send_chat_action(event.chat_id, 'typing')
-        await asyncio.sleep(sleep_duration)
-
+        
         try:
+            sleep_duration = min(self.typing_time * len(reply), 120)
+            logger.info(f"[🤖] Simulation sleeping for {sleep_duration} seconds")
+            await asyncio.sleep(sleep_duration)
             await event.reply(reply)
+            logger.info(f"[🤖] Reply to {sender_name} (ID: {sender_id}): {reply}")
         except FloodWaitError as e:
+            logger.warning(f"FloodWaitError: Sleeping for {e.seconds} seconds")
             await asyncio.sleep(e.seconds)
             await event.reply(reply)
+            logger.info(f"[🤖] Reply to {sender_name} after flood wait: {reply}")
 
     async def start(self):
         self.client.add_event_handler(self.toggle_active, events.NewMessage())
         self.client.add_event_handler(self.on_new_message, events.NewMessage(incoming=True))
 
         await self.client.start()
-        print(f"[✅] Assistant started on session {self.api_id}")
+        logger.info(f"Assistant started on session {self.api_id}")
         await self.client.run_until_disconnected()
 
 

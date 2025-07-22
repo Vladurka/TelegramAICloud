@@ -25,12 +25,6 @@ export const createOrUpdateAgent = async (req, res, next) => {
     const user = await User.findOne({ clerkId });
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    if (await Agent.exists({ apiId })) {
-      return res
-        .status(400)
-        .json({ error: "Agent with this API ID already exists" });
-    }
-
     const payload = {
       api_id: apiId,
       api_hash: apiHash,
@@ -41,10 +35,12 @@ export const createOrUpdateAgent = async (req, res, next) => {
 
     await sendToQueue("create_or_update_agent", payload);
 
-    await Agent.create({
-      apiId,
-      user: user._id,
-    });
+    if (!(await Agent.exists({ apiId, user: user._id }))) {
+      await Agent.create({
+        apiId,
+        user: user._id,
+      });
+    }
 
     res.json({ status: "queued", type: "create_or_update_agent" });
   } catch (err) {
