@@ -2,8 +2,8 @@ import { sendToQueue } from "../lib/rabbitmq.js";
 import { Agent } from "../models/agent.model.js";
 import { User } from "../models/user.model.js";
 
-export const createAgent = async (req, res) => {
-  const { apiId, apiHash, sessionString, prompt, replyTime, clerkId } =
+export const createOrUpdateAgent = async (req, res, next) => {
+  const { apiId, apiHash, sessionString, prompt, typingTime, clerkId } =
     req.body;
 
   if (
@@ -11,66 +11,66 @@ export const createAgent = async (req, res) => {
     !apiHash ||
     !sessionString ||
     !prompt ||
-    !replyTime ||
-    replyTime < 0 ||
+    typingTime == null ||
+    isNaN(Number(typingTime)) ||
+    Number(typingTime) < 0 ||
     !clerkId
   ) {
-    return res.status(400).json({ error: "Missing required fields" });
+    return res
+      .status(400)
+      .json({ error: "Missing or invalid required fields" });
   }
 
   try {
+    const user = await User.findOne({ clerkId });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    if (await Agent.exists({ apiId })) {
+      return res
+        .status(400)
+        .json({ error: "Agent with this API ID already exists" });
+    }
+
     const payload = {
       api_id: apiId,
       api_hash: apiHash,
       session_string: sessionString,
-      prompt: prompt,
-      reply_time: replyTime,
+      prompt,
+      typing_time: Number(typingTime),
     };
 
-    await sendToQueue("create_agent", payload);
-
-    const user = await User.findOne({ clerkId: clerkId });
-
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
+    await sendToQueue("create_or_update_agent", payload);
 
     await Agent.create({
       apiId,
       user: user._id,
     });
-    res.json({ status: "queued", type: "create_agent" });
+
+    res.json({ status: "queued", type: "create_or_update_agent" });
   } catch (err) {
-    console.error("Failed to enqueue create_agent:", err);
-    res.status(500).json({ error: "Failed to queue message" });
+    next(err);
   }
 };
 
-export const deleteAgent = async (req, res) => {
-  const { api_id, clerkId } = req.body;
+export const deleteAgent = async (req, res, next) => {
+  const { apiId, clerkId } = req.body;
 
-  if (!api_id || !clerkId) {
-    return res.status(400).json({ error: "api_id and clerkId are required" });
+  if (!apiId || !clerkId) {
+    return res.status(400).json({ error: "apiId and clerkId are required" });
   }
 
   try {
-    const user = await User.findOne({ clerkId: clerkId });
+    const user = await User.findOne({ clerkId });
+    if (!user) return res.status(404).json({ error: "User not found" });
 
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
+    const agent = await Agent.findOne({ apiId, user: user._id });
+    if (!agent) return res.status(404).json({ error: "Agent not found" });
 
-    const agent = await Agent.findOne({ apiId: api_id, user: user._id });
-
-    if (!agent) {
-      return res.status(404).json({ error: "Agent not found" });
-    }
-
-    await sendToQueue("delete_agent", { api_id });
+    await sendToQueue("delete_agent", { api_id: apiId });
     await Agent.deleteOne({ _id: agent._id });
+
     res.json({ status: "queued", type: "delete_agent" });
   } catch (err) {
-    console.error("Failed to enqueue delete_agent:", err);
-    res.status(500).json({ error: "Failed to queue message" });
+    next(err);
   }
 };

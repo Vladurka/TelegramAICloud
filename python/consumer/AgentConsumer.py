@@ -11,7 +11,7 @@ OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 
 docker_client = docker.from_env()
 
-def run_agent_container(api_id, api_hash, session_string, prompt, reply_time):
+def run_agent_container(api_id, api_hash, session_string, prompt, typing_time):
     container_name = f"agent_{api_id}"
     print(f"[INFO] (Re)Starting agent container: {container_name}")
     
@@ -24,17 +24,25 @@ def run_agent_container(api_id, api_hash, session_string, prompt, reply_time):
         pass
 
     docker_client.containers.run(
-    image=DOCKER_IMAGE,
-    command=["python", "AgentRunner.py", str(api_id), api_hash, session_string, prompt, reply_time],
-    environment={"OPENAI_API_KEY": OPENAI_KEY},
-    detach=True,
-    name=container_name,
-    restart_policy={"Name": "on-failure"}
-)
+        image=DOCKER_IMAGE,
+        command=["python", "AgentRunner.py"],
+        environment={
+            "OPENAI_API_KEY": OPENAI_KEY,
+            "API_ID": str(api_id),
+            "API_HASH": api_hash,
+            "SESSION_STRING": session_string,
+            "PROMPT": prompt,
+            "TYPING_TIME": typing_time
+        },
+        detach=True,
+        name=container_name,
+        restart_policy={"Name": "on-failure"}
+    )
     print(f"[INFO] Agent container {container_name} started successfully.")
 
 
-def create_agent(ch, method, properties, body):
+
+def create_or_update_agent(ch, method, properties, body):
     try:
         data = json.loads(body)
         run_agent_container(
@@ -42,7 +50,7 @@ def create_agent(ch, method, properties, body):
             api_hash=data["api_hash"],
             session_string=data["session_string"],
             prompt=data["prompt"],
-            reply_time=data["reply_time"] 
+            typing_time=data["typing_time"] 
         )
         ch.basic_ack(delivery_tag=method.delivery_tag)
     except Exception as e:
@@ -70,8 +78,8 @@ def delete_agent(ch, method, properties, body):
 def main():
     connection = pika.BlockingConnection(pika.ConnectionParameters("localhost"))
     channel = connection.channel()
-    channel.queue_declare(queue="create_agent", durable=True)
-    channel.basic_consume(queue="create_agent", on_message_callback=create_agent)
+    channel.queue_declare(queue="create_or_update_agent", durable=True)
+    channel.basic_consume(queue="create_or_update_agent", on_message_callback=create_or_update_agent)
     channel.queue_declare(queue="delete_agent", durable=True)
     channel.basic_consume(queue="delete_agent", on_message_callback=delete_agent)
     print("[*] Waiting for new account data...")

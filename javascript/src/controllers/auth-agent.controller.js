@@ -1,7 +1,7 @@
 import { TelegramClient, Api } from "telegram";
 import { StringSession } from "telegram/sessions/index.js";
 
-export const sendCode = async (req, res) => {
+export const sendCode = async (req, res, next) => {
   const { phone, apiId, apiHash } = req.body;
 
   if (!phone || typeof phone !== "string") {
@@ -32,12 +32,11 @@ export const sendCode = async (req, res) => {
       phoneCodeHash: result.phoneCodeHash,
     });
   } catch (err) {
-    console.error("SendCode error:", err);
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 };
 
-export const confirmCode = async (req, res) => {
+export const confirmCode = async (req, res, next) => {
   const { phoneCodeHash, apiId, apiHash, phone, session, code, password } =
     req.body;
 

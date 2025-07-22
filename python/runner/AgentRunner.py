@@ -1,5 +1,4 @@
 import os
-import random
 import asyncio
 from dotenv import load_dotenv
 from telethon import TelegramClient, events
@@ -11,15 +10,17 @@ import openai
 load_dotenv()
 
 class TelegramAIAgent:
-    def __init__(self, api_id, api_hash, session_string, prompt, reply_time):
-        self.api_id = api_id
-        self.api_hash = api_hash
-        self.session_string = session_string
-        self.prompt = prompt
-        self.reply_time = float(reply_time)
+    def __init__(self):
+        self.api_id = int(os.getenv("API_ID"))
+        self.api_hash = os.getenv("API_HASH")
+        self.session_string = os.getenv("SESSION_STRING")
+        self.prompt = os.getenv("PROMPT")
+        self.typing_time = float(os.getenv("TYPING_TIME"))  
         self.is_active = True
         self.my_id = None
-        self.client = TelegramClient(StringSession(session_string), api_id, api_hash)
+
+        self.client = TelegramClient(StringSession(self.session_string), self.api_id, self.api_hash)
+
         self.openai_client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     async def build_context(self, event, limit=4):
@@ -65,18 +66,19 @@ class TelegramAIAgent:
             ]
 
             response = await self.openai_client.chat.completions.create(
-                model="gpt-4.1-mini",
+                model="gpt-4.1-mini", 
                 messages=messages,
                 max_tokens=200,
             )
             reply = response.choices[0].message.content.strip()
-            
 
         except Exception as e:
             print(f"OpenAI Error: {e}")
-            reply = e
+            reply = f"❌ Error: {e}"
 
-        await asyncio.sleep(random.uniform(self.reply_time * 0.8, self.reply_time * 1.2))
+        sleep_duration = min(self.typing_time * len(reply), 120)
+        await self.client.send_chat_action(event.chat_id, 'typing')
+        await asyncio.sleep(sleep_duration)
 
         try:
             await event.reply(reply)
@@ -94,17 +96,5 @@ class TelegramAIAgent:
 
 
 if __name__ == "__main__":
-    import sys
-
-    if len(sys.argv) != 6:
-        print("Usage: python AgentRunner.py <api_id> <api_hash> <session_string> <prompt> <reply_time>")
-        sys.exit(1)
-
-    api_id = int(sys.argv[1])
-    api_hash = sys.argv[2]
-    session_string = sys.argv[3]
-    prompt = sys.argv[4]
-    reply_time = sys.argv[5]
-
-    agent = TelegramAIAgent(api_id, api_hash, session_string, prompt, reply_time)
+    agent = TelegramAIAgent()
     asyncio.run(agent.start())
