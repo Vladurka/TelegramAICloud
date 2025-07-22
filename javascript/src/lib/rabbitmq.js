@@ -1,4 +1,5 @@
 import amqp from "amqplib";
+import { RabbitMQNotConnectedError } from "../errors/RabbitMQNotConnectedError.js";
 
 let connection;
 let channel;
@@ -21,7 +22,9 @@ export const connectRabbitMQ = async (
 
 export const sendToQueue = async (queueName, message) => {
   if (!channel) {
-    throw new Error("Channel is not connected. Call connectRabbitMQ() first.");
+    throw new RabbitMQNotConnectedError(
+      "Channel is not connected. Call connectRabbitMQ() first."
+    );
   }
 
   await channel.assertQueue(queueName, { durable: true });
