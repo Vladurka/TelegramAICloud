@@ -1,15 +1,11 @@
 import { sendToQueue } from "../lib/rabbitmq.js";
 import { Agent } from "../models/agent.model.js";
 import { User } from "../models/user.model.js";
-import { createAgentSchema, updateAgentSchema } from "../utils/validation.js";
-import { ZodError } from "zod";
 import { RabbitMQNotConnectedError } from "../errors/RabbitMQNotConnectedError.js";
 import { MongoNetworkError, MongoServerError } from "mongodb";
 
 export const createAgent = async (req, res, next) => {
   try {
-    const parsed = createAgentSchema.parse(req.body);
-
     const {
       clerkId,
       apiId,
@@ -20,7 +16,7 @@ export const createAgent = async (req, res, next) => {
       typingTime,
       reactionTime,
       model,
-    } = parsed;
+    } = req.body;
 
     const user = await User.findOne({ clerkId });
     if (!user) return res.status(404).json({ error: "User not found" });
@@ -55,18 +51,6 @@ export const createAgent = async (req, res, next) => {
       .status(200)
       .json({ status: "queued", type: "create_or_update_agent" });
   } catch (err) {
-    if (err instanceof ZodError) {
-      const issues =
-        err.errors?.map((issue) => ({
-          path: issue.path.join("."),
-          message: issue.message,
-        })) || [];
-
-      return res.status(400).json({
-        error: "Validation failed",
-        issues,
-      });
-    }
     if (err instanceof MongoServerError && err.code === 11000) {
       return res.status(404).json({ error: "Agent already exists" });
     }
@@ -86,9 +70,8 @@ export const createAgent = async (req, res, next) => {
 
 export const updateAgent = async (req, res, next) => {
   try {
-    const parsed = updateAgentSchema.parse(req.body);
     const { clerkId, apiId, name, prompt, typingTime, reactionTime, model } =
-      parsed;
+      req.body;
 
     const user = await User.findOne({ clerkId });
     if (!user) return res.status(404).json({ error: "User not found" });
@@ -123,18 +106,6 @@ export const updateAgent = async (req, res, next) => {
 
     return res.json({ status: "queued", type: "create_or_update_agent" });
   } catch (err) {
-    if (err instanceof ZodError) {
-      const issues =
-        err.errors?.map((issue) => ({
-          path: issue.path.join("."),
-          message: issue.message,
-        })) || [];
-
-      return res.status(400).json({
-        error: "Validation failed",
-        issues,
-      });
-    }
     if (err instanceof MongoNetworkError) {
       return res.status(503).json({
         error: "Database connection error. Please try again later.",

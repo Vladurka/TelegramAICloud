@@ -47,14 +47,13 @@ export const updateAgentSchema = z.object({
     .min(10000000, "apiId must be at least 8 digits")
     .max(99999999, "apiId must be at most 8 digits"),
 
-  name: z.string().optional(),
-  prompt: z.string().optional(),
+  name: z.string().min(1, "Name is required").optional(),
+  prompt: z.string().min(1, "Prompt is required").optional(),
   typingTime: z.coerce.number().min(0, "typingTime must be ≥ 0").optional(),
   reactionTime: z.coerce.number().min(0, "reactionTime must be ≥ 0").optional(),
   model: z
     .enum(allowedModels, {
       message: `Model must be one of: ${allowedModels.join(", ")}`,
     })
-    .default(allowedModels[0])
     .optional(),
 });

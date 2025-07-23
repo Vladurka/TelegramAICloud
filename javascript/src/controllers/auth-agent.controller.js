@@ -2,17 +2,7 @@ import { TelegramClient, Api } from "telegram";
 import { StringSession } from "telegram/sessions/index.js";
 
 export const sendCode = async (req, res, next) => {
-  const { phone, apiId, apiHash } = req.body;
-
-  if (!phone || typeof phone !== "string") {
-    return res.status(400).json({ error: "Missing or invalid 'phone'" });
-  }
-  if (!apiId || typeof apiId !== "number") {
-    return res.status(400).json({ error: "Missing or invalid 'apiId'" });
-  }
-  if (!apiHash || typeof apiHash !== "string") {
-    return res.status(400).json({ error: "Missing or invalid 'apiHash'" });
-  }
+  const { apiId, apiHash, phone } = req.body;
 
   const client = new TelegramClient(new StringSession(""), apiId, apiHash);
   await client.connect();
@@ -40,27 +30,6 @@ export const confirmCode = async (req, res, next) => {
   const { phoneCodeHash, apiId, apiHash, phone, session, code, password } =
     req.body;
 
-  if (!phone || typeof phone !== "string") {
-    return res.status(400).json({ error: "Missing or invalid 'phone'" });
-  }
-  if (!apiId || typeof apiId !== "number") {
-    return res.status(400).json({ error: "Missing or invalid 'apiId'" });
-  }
-  if (!apiHash || typeof apiHash !== "string") {
-    return res.status(400).json({ error: "Missing or invalid 'apiHash'" });
-  }
-  if (!phoneCodeHash || typeof phoneCodeHash !== "string") {
-    return res
-      .status(400)
-      .json({ error: "Missing or invalid 'phoneCodeHash'" });
-  }
-  if (!session || typeof session !== "string") {
-    return res.status(400).json({ error: "Missing or invalid 'session'" });
-  }
-  if (!code || typeof code !== "string") {
-    return res.status(400).json({ error: "Missing or invalid 'code'" });
-  }
-
   const client = new TelegramClient(new StringSession(session), apiId, apiHash);
   await client.connect();
 
@@ -69,7 +38,7 @@ export const confirmCode = async (req, res, next) => {
       new Api.auth.SignIn({
         phoneNumber: phone,
         phoneCodeHash,
-        phoneCode: code,
+        phoneCode: code.toString(),
       })
     );
 
