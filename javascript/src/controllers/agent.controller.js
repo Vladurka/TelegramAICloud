@@ -1,8 +1,9 @@
 import { sendToQueue } from "../lib/rabbitmq.js";
 import { Agent } from "../models/agent.model.js";
 import { User } from "../models/user.model.js";
-import { RabbitMQNotConnectedError } from "../errors/RabbitMQNotConnectedError.js";
 import { MongoNetworkError, MongoServerError } from "mongodb";
+import { buildAgentPayload } from "../utils/agent.utils.js";
+import { RabbitMQNotConnectedError } from "../errors/RabbitMQNotConnectedError.js";
 
 export const createAgent = async (req, res, next) => {
   try {
@@ -52,7 +53,7 @@ export const createAgent = async (req, res, next) => {
       .json({ status: "queued", type: "create_or_update_agent" });
   } catch (err) {
     if (err instanceof MongoServerError && err.code === 11000) {
-      return res.status(404).json({ error: "Agent already exists" });
+      return res.status(400).json({ error: "Agent already exists" });
     }
     if (err instanceof MongoNetworkError) {
       return res.status(503).json({
@@ -99,17 +100,7 @@ export const updateAgent = async (req, res, next) => {
     const agent = await Agent.findOne({ apiId, user: user._id });
     if (!agent) return res.status(404).json({ error: "Agent not found" });
 
-    const payload = {
-      user_id: user._id,
-      api_id: apiId,
-      api_hash: agent.apiHash,
-      session_string: agent.sessionString,
-      name: name?.trim() || agent.name,
-      prompt: prompt?.trim() || agent.prompt,
-      typing_time: typingTime ?? agent.typingTime,
-      reaction_time: reactionTime ?? agent.reactionTime,
-      model: model?.trim() || agent.model,
-    };
+    const payload = buildAgentPayload(user._id, req.body, agent);
 
     await Agent.updateOne(
       { _id: agent._id },
