@@ -68,6 +68,26 @@ export const createAgent = async (req, res, next) => {
   }
 };
 
+export const getAgentsByUser = async (req, res, next) => {
+  try {
+    const { clerkId } = req.params;
+    const user = await User.findOne({ clerkId });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const agents = await Agent.find({ user: user._id }).select(
+      "-_id apiId name prompt typingTime reactionTime model"
+    );
+    return res.status(200).json(agents);
+  } catch (err) {
+    next(err);
+    if (err instanceof MongoNetworkError) {
+      return res.status(503).json({
+        error: "Database connection error. Please try again later.",
+      });
+    }
+  }
+};
+
 export const updateAgent = async (req, res, next) => {
   try {
     const { clerkId, apiId, name, prompt, typingTime, reactionTime, model } =

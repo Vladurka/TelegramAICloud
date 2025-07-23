@@ -38,8 +38,10 @@ def run_agent_container(api_id, api_hash, session_string, prompt, typing_time, r
 
     try:
         existing_container = docker_client.containers.get(container_name)
-        print(f"[WARNING] Container '{container_name}' already exists. Aborting launch.")
-        return
+        print(f"[INFO] Stopping existing container: {container_name}")
+        existing_container.stop()
+        print(f"[INFO] Removing existing container: {container_name}")
+        existing_container.remove()
     except docker.errors.NotFound:
         pass
     except Exception as e:
@@ -111,6 +113,8 @@ def delete_agent(ch, method, properties, body):
         existing = docker_client.containers.get(container_name)
         existing.stop()
         existing.remove()
+
+        print(f"[INFO] Agent container '{container_name}' deleted successfully")
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
 

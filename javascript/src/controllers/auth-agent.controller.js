@@ -66,7 +66,7 @@ export const confirmCode = async (req, res, next) => {
         });
       }
     } else {
-      res.status(500).json({ error: err.message });
+      next(err);
     }
   }
 };
