@@ -15,19 +15,23 @@ const agentSchema = new mongoose.Schema(
     apiHash: {
       type: String,
       required: true,
+      trim: true,
     },
     sessionString: {
       type: String,
       required: true,
       unique: true,
+      trim: true,
     },
     name: {
       type: String,
       required: true,
+      trim: true,
     },
     prompt: {
       type: String,
       required: true,
+      trim: true,
     },
     typingTime: {
       type: Number,
@@ -51,6 +55,7 @@ const agentSchema = new mongoose.Schema(
         "gpt-4.1-nano",
         "gpt-4.5",
       ],
+      trim: true,
     },
   },
   { timestamps: true }

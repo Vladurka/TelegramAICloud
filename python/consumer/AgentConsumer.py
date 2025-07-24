@@ -32,6 +32,7 @@ def validate_agent_data(data):
     if not isinstance(data["reaction_time"], (int, float)) or data["reaction_time"] < 0:
         raise ValueError("Field 'reaction_time' must be ≥ 0")
 
+
 def run_agent_container(api_id, api_hash, session_string, prompt, typing_time, reaction_time, model, name):
     container_name = f"agent_{api_id}"
     print(f"[INFO] Attempting to start agent container: {container_name}")
@@ -97,6 +98,32 @@ def create_or_update_agent(ch, method, properties, body):
         ch.basic_nack(delivery_tag=method.delivery_tag)
 
 
+def stop_agent(ch, method, properties, body):
+
+    try:
+        data = json.loads(body)
+        api_id = data.get("api_id")
+
+        if not api_id or not isinstance(api_id, int):
+            raise ValueError("Missing or empty required field: api_id")
+
+        container_name = f"agent_{api_id}"
+        print(f"[INFO] Stopping agent container: {container_name}")
+
+        existing = docker_client.containers.get(container_name)
+        existing.stop()
+
+        print(f"[INFO] Agent container '{container_name}' stopped successfully")
+
+        ch.basic_ack(delivery_tag=method.delivery_tag)
+    except ValueError as ve:
+        print(f"[VALIDATION ERROR] {ve}")
+        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+    except Exception as e:
+        print(f"[ERROR] Failed to stop agent: {e}")
+        ch.basic_nack(delivery_tag=method.delivery_tag)
+
+
 def delete_agent(ch, method, properties, body):
     container_name = None 
     try:
@@ -137,7 +164,11 @@ def main():
     channel.queue_declare(queue="create_or_update_agent", durable=True)
     channel.basic_consume(queue="create_or_update_agent", on_message_callback=create_or_update_agent)
     channel.queue_declare(queue="delete_agent", durable=True)
-    channel.basic_consume(queue="delete_agent", on_message_callback=delete_agent)
+    channel.basic_consume(queue="delete_agent", 
+    on_message_callback=delete_agent)
+    channel.queue_declare(queue="stop_agent", durable=True)
+    channel.basic_consume(queue="stop_agent", 
+    on_message_callback=stop_agent)
     print("[*] Waiting for new account data...")
     channel.start_consuming()
 

@@ -1,11 +1,15 @@
-import { connectRabbitMQ } from "./src/lib/rabbitmq.js";
-import { connectDB } from "./src/lib/db.js";
-import { clerkMiddleware } from "@clerk/express";
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+
+import { connectRabbitMQ } from "./src/lib/rabbitmq.js";
+import { connectDB } from "./src/lib/db.js";
+import { clerkMiddleware } from "@clerk/express";
 import authAgentRouter from "./src/routes/auth-agent.route.js";
 import agentRouter from "./src/routes/agent.route.js";
+import { stripeWebhook } from "./src/controllers/stripeWebhook.controller.js";
+import { openSubscription } from "./src/controllers/subscription.controller.js";
+import { authCallback } from "./src/controllers/auth.controller.js";
 
 dotenv.config();
 
@@ -14,8 +18,17 @@ const port = process.env.PORT || 5000;
 
 app.use(cors());
 
+app.post(
+  "/api/stripe/webhook",
+  express.raw({ type: "application/json" }),
+  stripeWebhook
+);
+
 app.use(express.json());
 app.use(clerkMiddleware());
+
+app.post("/api/subscription/open", openSubscription);
+app.post("/api/auth/callback", authCallback);
 
 app.use("/api/auth-agent", authAgentRouter);
 app.use("/api/agent", agentRouter);

@@ -1,8 +1,9 @@
 import { User } from "../models/user.model.js";
+import { stripe } from "../lib/stripe.js";
 
 export const authCallback = async (req, res, next) => {
   try {
-    const { clerkId, firstName, lastName } = req.body;
+    const { email, clerkId, firstName, lastName } = req.body;
 
     const existingUser = await User.findOne({ clerkId: clerkId });
 
@@ -11,9 +12,12 @@ export const authCallback = async (req, res, next) => {
       if (firstName) nameParts.push(firstName);
       if (lastName) nameParts.push(lastName);
       const fullName = nameParts.join(" ");
+      const customer = await stripe.customers.create({ email: email });
 
       await User.create({
+        email,
         clerkId,
+        stripeCustomerId: customer.id,
         fullName,
       });
       res.status(201).json({ success: true, created: true });

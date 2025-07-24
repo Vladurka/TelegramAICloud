@@ -1,5 +1,5 @@
 import express from "express";
-import { sendCode, confirmCode } from "../controllers/auth-agent.controller.js";
+import { sendCode, confirmCode } from "../controllers/authAgent.controller.js";
 import { protectRoute } from "../middleware/auth.middleware.js";
 import { validateRequest } from "../middleware/validation.middleware.js";
 import {
