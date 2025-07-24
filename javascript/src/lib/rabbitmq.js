@@ -21,6 +21,8 @@ export const connectRabbitMQ = async (
 };
 
 export const sendToQueue = async (queueName, message) => {
+  if (process.env.NODE_ENV === "test") return;
+
   if (!channel) {
     throw new RabbitMQNotConnectedError(
       "Channel is not connected. Call connectRabbitMQ() first."

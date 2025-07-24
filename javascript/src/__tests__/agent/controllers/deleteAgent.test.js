@@ -30,60 +30,42 @@ beforeAll(async () => {
   });
 });
 
-describe("POST /api/agent/create", () => {
-  it("should create the same agent for a different apiId", async () => {
-    const res = await request(app)
-      .post("/api/agent/create")
-      .send({
-        clerkId: testUser.clerkId,
-        apiId: 22222222,
-        name: testAgent.name,
-        apiHash: testAgent.apiHash,
-        sessionString: testAgent.sessionString + "2",
-        prompt: testAgent.prompt,
-      });
+describe("DELETE /api/agent/delete", () => {
+  it("should delete an agent for existing user", async () => {
+    const res = await request(app).delete("/api/agent/delete").send({
+      clerkId: testUser.clerkId,
+      apiId: testAgent.apiId,
+    });
 
     expect(res.statusCode).toBe(200);
     expect(res.body).toEqual({
       status: "queued",
-      type: "create_or_update_agent",
+      type: "delete_agent",
     });
 
-    const agent = await Agent.findOne({ apiId: 22222222 });
-    expect(agent).toBeTruthy();
-    expect(agent.name).toBe(testAgent.name);
-  });
+    const agent = await Agent.findOne({ apiId: testAgent.apiId });
 
-  it("should return 400 if agent already exists", async () => {
-    const res = await request(app)
-      .post("/api/agent/create")
-      .send({
-        clerkId: testUser.clerkId,
-        apiId: testAgent.apiId,
-        name: testAgent.name,
-        apiHash: testAgent.apiHash,
-        sessionString: testAgent.sessionString + "3",
-        prompt: testAgent.prompt,
-      });
-
-    expect(res.statusCode).toBe(400);
-    expect(res.body).toEqual({ error: "Agent already exists" });
+    expect(agent).toBeNull();
   });
 
   it("should return 404 if user not found", async () => {
-    const res = await request(app)
-      .post("/api/agent/create")
-      .send({
-        clerkId: "nonexistent_clerk_id",
-        apiId: 44444444,
-        name: testAgent.name,
-        apiHash: testAgent.apiHash,
-        sessionString: testAgent.sessionString + "4",
-        prompt: testAgent.prompt,
-      });
+    const res = await request(app).delete("/api/agent/delete").send({
+      clerkId: "nonexistent_clerk_id",
+      apiId: 22222222,
+    });
 
     expect(res.statusCode).toBe(404);
     expect(res.body).toEqual({ error: "User not found" });
+  });
+
+  it("should return 404 if agent not found", async () => {
+    const res = await request(app).delete("/api/agent/delete").send({
+      clerkId: testUser.clerkId,
+      apiId: 33333333,
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body).toEqual({ error: "Agent not found" });
   });
 });
 

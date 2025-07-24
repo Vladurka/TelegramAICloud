@@ -3,10 +3,10 @@ import sys
 import asyncio
 import logging
 from dotenv import load_dotenv
-from telethon import TelegramClient, events
+from telethon import TelegramClient, events, functions, types
 from telethon.sessions import StringSession
 from telethon.tl.types import Message
-from telethon.errors import FloodWaitError
+from telethon.errors import FloodWaitError, ChatWriteForbiddenError
 import openai
 
 load_dotenv()
@@ -25,6 +25,8 @@ class TelegramAIAgent:
         self.session_string = os.getenv("SESSION_STRING")
         self.prompt = os.getenv("PROMPT")
         self.typing_time = float(os.getenv("TYPING_TIME"))  
+        self.reaction_time = float(os.getenv("REACTION_TIME"))
+        self.model = os.getenv("MODEL")
         self.is_active = True
         self.my_id = None
 
@@ -32,7 +34,7 @@ class TelegramAIAgent:
 
         self.openai_client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-    async def build_context(self, event, limit=4):
+    async def _build_context(self, event, limit=4):
         messages = await self.client.get_messages(event.chat_id, limit=limit)
         context = []
 
@@ -76,13 +78,13 @@ class TelegramAIAgent:
         logger.info(f"[📩] Message from {sender_name} (ID: {sender_id}): {message}")
 
         try:
-            context = await self.build_context(event)
+            context = await self._build_context(event)
             messages = [{"role": "system", "content": self.prompt}] + context + [
                 {"role": "user", "content": message}
             ]
 
             response = await self.openai_client.chat.completions.create(
-                model="gpt-4.1-mini", 
+                model=self.model, 
                 messages=messages,
                 max_tokens=200,
             )
@@ -93,11 +95,34 @@ class TelegramAIAgent:
             reply = f"❌ Error: {e}"
         
         try:
+            await asyncio.sleep(self.reaction_time)
+            await self.client.send_read_acknowledge(event.chat_id)
+
+            peer = await event.get_input_chat()
             sleep_duration = min(self.typing_time * len(reply), 120)
-            logger.info(f"[🤖] Simulation sleeping for {sleep_duration} seconds")
-            await asyncio.sleep(sleep_duration)
+            logger.info(f"[🤖] Simulating typing for {sleep_duration:.1f} seconds")
+
+            typing_interval = 4 
+            elapsed = 0
+
+            while elapsed < sleep_duration:
+                await self.client(functions.messages.SetTypingRequest(
+                    peer=peer,
+                    action=types.SendMessageTypingAction()
+                ))
+               
+                await asyncio.sleep(typing_interval)
+                elapsed += typing_interval
+
             await event.reply(reply)
+
+            await self.client(functions.messages.SetTypingRequest(
+                peer=peer,
+                action=types.SendMessageCancelAction(),
+            ))
+
             logger.info(f"[🤖] Reply to {sender_name} (ID: {sender_id}): {reply}")
+
         except FloodWaitError as e:
             logger.warning(f"FloodWaitError: Sleeping for {e.seconds} seconds")
             await asyncio.sleep(e.seconds)

@@ -19,6 +19,7 @@ const agentSchema = new mongoose.Schema(
     sessionString: {
       type: String,
       required: true,
+      unique: true,
     },
     name: {
       type: String,
