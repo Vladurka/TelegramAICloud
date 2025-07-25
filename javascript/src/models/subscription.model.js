@@ -9,7 +9,6 @@ const subscriptionSchema = new mongoose.Schema({
   containerId: {
     type: Number,
     required: true,
-    unique: true,
     trim: true,
   },
   stripeSubscriptionId: {
@@ -36,11 +35,6 @@ const subscriptionSchema = new mongoose.Schema({
     type: String,
     required: true,
     trim: true,
-  },
-  cancelAtPeriodEnd: {
-    type: Boolean,
-    required: true,
-    default: false,
   },
 });
 

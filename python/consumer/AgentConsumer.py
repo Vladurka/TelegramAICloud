@@ -102,7 +102,7 @@ def stop_agent(ch, method, properties, body):
 
     try:
         data = json.loads(body)
-        api_id = data.get("api_id")
+        api_id = data["api_id"]
 
         if not api_id or not isinstance(api_id, int):
             raise ValueError("Missing or empty required field: api_id")
@@ -129,7 +129,7 @@ def delete_agent(ch, method, properties, body):
     try:
         data = json.loads(body)
 
-        api_id = data.get("api_id")
+        api_id = data["api_id"]
 
         if not api_id or not isinstance(api_id, int):
             raise ValueError("Missing or empty required field: api_id")

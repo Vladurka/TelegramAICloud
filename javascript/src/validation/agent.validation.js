@@ -38,6 +38,7 @@ export const createAgentSchema = z.object({
     .optional(),
 
   name: z.string().min(1, "Name is required"),
+  planType: z.enum(["month", "year"]),
 });
 
 export const updateAgentSchema = z.object({

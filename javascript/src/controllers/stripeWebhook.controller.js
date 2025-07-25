@@ -3,6 +3,9 @@ import dotenv from "dotenv";
 import { User } from "../models/user.model.js";
 import { sendToQueue } from "../lib/rabbitmq.js";
 import { Subscription } from "../models/subscription.model.js";
+import { Agent } from "../models/agent.model.js";
+import { buildAgentPayloadFromAgent } from "../utils/agent.utils.js";
+import { startAgent } from "./agent.controller.js";
 
 dotenv.config();
 
@@ -35,6 +38,16 @@ export const stripeWebhook = async (req, res) => {
         await handleCheckoutSessionFailed(event.data.object);
         break;
 
+      case "invoice.payment_failed":
+        console.log("▶️ Handling invoice.payment_failed");
+        await handlePaymentFailed(event.data.object);
+        break;
+
+      case "customer.subscription.deleted":
+        console.log("▶️ Handling customer.subscription.deleted");
+        await handleSubscriptionCanceled(event.data.object);
+        break;
+
       default:
         console.log(`⚠️ Unhandled event type: ${event.type}`);
     }
@@ -51,37 +64,55 @@ async function handleCheckoutSessionCompleted(session) {
   const stripeCustomerId = session.customer;
   const subscriptionId = session.subscription;
 
+  console.log(session.metadata);
+
   if (!containerId || !stripeCustomerId || !userId || !planType) {
     throw new Error("❗ Missing required session metadata");
   }
 
-  if (!subscriptionId) {
-    throw new Error("❗ Missing subscription ID in session");
-  }
+  if (!subscriptionId) throw new Error("❗Missing subscription ID");
 
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+
+  const startDate = new Date();
+  const endDate = new Date(startDate);
+
+  if (planType === "month") {
+    endDate.setMonth(startDate.getMonth() + 1);
+  } else if (planType === "year") {
+    endDate.setFullYear(startDate.getFullYear() + 1);
+  }
 
   await Subscription.create({
     user: userId,
     containerId,
     stripeSubscriptionId: subscription.id,
     planType,
-    currentPeriodStart: new Date(session.created * 1000),
-    currentPeriodEnd: new Date(session.expires_at * 1000),
+    currentPeriodStart: startDate,
+    currentPeriodEnd: endDate,
     status: subscription.status,
   });
-  console.log("✅ Subscription saved to DB");
 
   const user = await User.findOne({ stripeCustomerId });
-  if (!user) {
-    throw new Error(
-      `❗ User with stripeCustomerId ${stripeCustomerId} not found`
-    );
-  }
 
-  user.currentSubscriptionId = subscription.id;
+  if (!user) throw new Error(`❗User with ${stripeCustomerId} not found`);
+
+  if (!user.currentSubscriptionIds.includes(subscriptionId))
+    user.currentSubscriptionIds.push(subscriptionId);
+
   await user.save();
-  console.log("✅ User updated with currentSubscriptionId");
+
+  const agent = await Agent.findOneAndUpdate(
+    { apiId: containerId },
+    { status: "active" }
+  );
+
+  if (!agent) throw new Error(`❗Agent with ${containerId} not found`);
+
+  const payload = buildAgentPayloadFromAgent(userId, agent);
+  await startAgent(payload);
+
+  console.log("✅ Subscription started for container:", containerId);
 }
 
 async function handleCheckoutSessionFailed(session) {
@@ -96,16 +127,57 @@ async function handleCheckoutSessionFailed(session) {
     );
   }
 
-  const user = await User.findOne({ stripeCustomerId });
-  if (!user) {
+  await Agent.findOneAndUpdate({ apiId: containerId }, { status: "frozen" });
+
+  console.log("✅ Subscription marked as failed for container:", containerId);
+}
+
+async function handlePaymentFailed(invoice) {
+  console.log("⚠️ Handling failed payment:", invoice);
+
+  const containerId = invoice.metadata?.containerId;
+  const stripeCustomerId = invoice.customer;
+
+  if (!containerId || !stripeCustomerId) {
     throw new Error(
-      `❗ User with stripeCustomerId ${stripeCustomerId} not found`
+      "❗Missing containerId or stripeCustomerId in failed session"
     );
   }
 
-  await sendToQueue("stop_agent", { api_id: containerId });
-  user.currentSubscriptionId = null;
-  await user.save();
+  await Agent.findOneAndUpdate({ apiId: containerId }, { status: "frozen" });
 
-  console.log("❌ Subscription marked as failed for container:", containerId);
+  await Subscription.findOneAndUpdate(
+    { stripeSubscriptionId: invoice.subscription },
+    {
+      status: "failed",
+    }
+  );
+
+  await sendToQueue("stop_agent", { api_id: containerId });
+
+  console.log("✅ Subscription marked as failed for container:", containerId);
+}
+
+async function handleSubscriptionCanceled(subscription) {
+  console.log("⚠️ Handling canceled subscription:", subscription);
+
+  const containerId = subscription.metadata?.containerId;
+  const stripeCustomerId = subscription.customer;
+
+  if (!containerId || !stripeCustomerId) {
+    throw new Error(
+      "❗ Missing containerId or stripeCustomerId in canceled subscription"
+    );
+  }
+
+  await Subscription.findOneAndUpdate(
+    { stripeSubscriptionId: subscription.id },
+    {
+      status: subscription.status || "canceled",
+    }
+  );
+
+  await sendToQueue("delete_agent", { api_id: Number(containerId) });
+
+  console.log("✅ Subscription marked as canceled for container:", containerId);
 }

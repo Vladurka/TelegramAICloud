@@ -7,8 +7,8 @@ import { connectDB } from "./src/lib/db.js";
 import { clerkMiddleware } from "@clerk/express";
 import authAgentRouter from "./src/routes/auth-agent.route.js";
 import agentRouter from "./src/routes/agent.route.js";
+import subscriptionRouter from "./src/routes/subscription.route.js";
 import { stripeWebhook } from "./src/controllers/stripeWebhook.controller.js";
-import { openSubscription } from "./src/controllers/subscription.controller.js";
 import { authCallback } from "./src/controllers/auth.controller.js";
 
 dotenv.config();
@@ -27,11 +27,11 @@ app.post(
 app.use(express.json());
 app.use(clerkMiddleware());
 
-app.post("/api/subscription/open", openSubscription);
 app.post("/api/auth/callback", authCallback);
 
 app.use("/api/auth-agent", authAgentRouter);
 app.use("/api/agent", agentRouter);
+app.use("/api/subscription", subscriptionRouter);
 
 app.use((error, req, res, next) => {
   res.status(500).json({

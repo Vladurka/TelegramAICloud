@@ -20,11 +20,10 @@ const userSchema = new mongoose.Schema(
       unique: true,
       trim: true,
     },
-    currentSubscriptionId: {
-      type: String,
-      ref: "Subscription",
+    currentSubscriptionIds: {
+      type: [String],
       required: false,
-      trim: true,
+      set: (arr) => arr.map((str) => str.trim()),
     },
     fullName: {
       type: String,
