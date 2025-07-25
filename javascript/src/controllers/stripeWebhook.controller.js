@@ -35,7 +35,19 @@ export const stripeWebhook = async (req, res) => {
 
       case "payment_intent.payment_failed":
         console.log("▶️ Handling payment_intent.payment_failed");
-        await handleCheckoutSessionFailed(event.data.object);
+
+        const paymentIntent = event.data.object;
+
+        const sessions = await stripe.checkout.sessions.list({
+          payment_intent: paymentIntent.id,
+          limit: 1,
+        });
+
+        const session = sessions.data[0];
+
+        if (!session) throw new Error("❗Missing checkout session");
+
+        await handleCheckoutSessionFailed(session);
         break;
 
       case "invoice.payment_failed":
@@ -63,8 +75,6 @@ async function handleCheckoutSessionCompleted(session) {
   const { containerId, planType, user: userId } = session.metadata || {};
   const stripeCustomerId = session.customer;
   const subscriptionId = session.subscription;
-
-  console.log(session.metadata);
 
   if (!containerId || !stripeCustomerId || !userId || !planType) {
     throw new Error("❗ Missing required session metadata");
