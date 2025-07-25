@@ -1,6 +1,9 @@
 from Crypto.Cipher import AES
 import base64
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 key_hex = os.getenv("ENCRYPTION_KEY")
 

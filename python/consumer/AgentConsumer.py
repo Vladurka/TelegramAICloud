@@ -3,6 +3,7 @@ import pika
 import docker
 import os
 from dotenv import load_dotenv
+from Utils import decrypt_aes_gcm
 
 load_dotenv()
 
@@ -58,7 +59,7 @@ def run_agent_container(api_id, api_hash, session_string, prompt, typing_time, r
                 "OPENAI_API_KEY": OPENAI_KEY,
                 "API_ID": str(api_id),
                 "API_HASH": api_hash,
-                "SESSION_STRING": session_string,
+                "SESSION_STRING": decrypt_aes_gcm(session_string),
                 "PROMPT": prompt,
                 "TYPING_TIME": str(typing_time),
                 "REACTION_TIME": str(reaction_time),

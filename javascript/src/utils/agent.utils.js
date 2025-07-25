@@ -1,8 +1,4 @@
-export function buildAgentPayloadForUpdate({
-  userId,
-  agentData,
-  existingAgent,
-}) {
+export function buildAgentPayloadForUpdate(userId, agentData, existingAgent) {
   return {
     user_id: userId,
     api_id: agentData.apiId,

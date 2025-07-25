@@ -4,6 +4,7 @@ import { User } from "../models/user.model.js";
 import { MongoNetworkError, MongoServerError } from "mongodb";
 import { buildAgentPayloadForUpdate } from "../utils/agent.utils.js";
 import { RabbitMQNotConnectedError } from "../errors/RabbitMQNotConnectedError.js";
+import { encryptAESGCM } from "../utils/hash.utils.js";
 import axios from "axios";
 import dotenv from "dotenv";
 
@@ -31,7 +32,7 @@ export const createAgent = async (req, res, next) => {
       user: user._id,
       apiId: apiId,
       apiHash: apiHash,
-      sessionString: sessionString,
+      sessionString: encryptAESGCM(sessionString),
       name: name.trim(),
       prompt: prompt.trim(),
       typingTime: typingTime ?? 0,
