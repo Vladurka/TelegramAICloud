@@ -79,14 +79,14 @@ class TelegramAIAgent:
 
         try:
             context = await self._build_context(event)
-            messages = [{"role": "system", "content": self.prompt}] + context + [
+            messages = [{"role": "system", "content": self.prompt + "You answer can't be longer than 100 words"}] + context + [
                 {"role": "user", "content": message}
             ]
 
             response = await self.openai_client.chat.completions.create(
                 model=self.model, 
                 messages=messages,
-                max_tokens=200,
+                max_tokens=150,
             )
             reply = response.choices[0].message.content.strip()
 

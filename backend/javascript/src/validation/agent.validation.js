@@ -1,15 +1,12 @@
 import { z } from "zod";
 
 const allowedModels = [
+  "gpt-3.5-turbo",
   "gpt-4o",
   "gpt-4o-mini",
-  "o3",
   "o4-mini",
-  "o4-mini-high",
-  "gpt-4.1",
   "gpt-4.1-mini",
   "gpt-4.1-nano",
-  "gpt-4.5",
 ];
 
 export const createAgentSchema = z.object({
