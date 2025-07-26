@@ -1,5 +1,5 @@
 import { TelegramClient, Api } from "telegram";
-import { StringSession } from "telegram/sessions";
+import { StringSession } from "telegram/sessions/index.js";
 
 export const sendCode = async (req, res, next) => {
   const { apiId, apiHash, phone } = req.body;

@@ -11,7 +11,6 @@ import { connectDB } from "./src/lib/db.js";
 import { clerkMiddleware } from "@clerk/express";
 import { stripeWebhook } from "./src/controllers/stripeWebhook.controller.js";
 import { authCallback } from "./src/controllers/auth.controller.js";
-import { rateLimiter } from "./src/middleware/rateLimiter.middleware.js";
 
 dotenv.config();
 
@@ -28,7 +27,6 @@ app.post(
 
 app.use(express.json());
 app.use(clerkMiddleware());
-app.use(rateLimiter);
 
 app.post("/api/auth/callback", authCallback);
 
