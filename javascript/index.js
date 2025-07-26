@@ -2,14 +2,16 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 
-import { connectRabbitMQ } from "./src/lib/rabbitmq.js";
-import { connectDB } from "./src/lib/db.js";
-import { clerkMiddleware } from "@clerk/express";
 import authAgentRouter from "./src/routes/auth-agent.route.js";
 import agentRouter from "./src/routes/agent.route.js";
 import subscriptionRouter from "./src/routes/subscription.route.js";
+
+import { connectRabbitMQ } from "./src/lib/rabbitmq.js";
+import { connectDB } from "./src/lib/db.js";
+import { clerkMiddleware } from "@clerk/express";
 import { stripeWebhook } from "./src/controllers/stripeWebhook.controller.js";
 import { authCallback } from "./src/controllers/auth.controller.js";
+import { rateLimiter } from "./src/middleware/rateLimiter.middleware.js";
 
 dotenv.config();
 
@@ -26,6 +28,7 @@ app.post(
 
 app.use(express.json());
 app.use(clerkMiddleware());
+app.use(rateLimiter);
 
 app.post("/api/auth/callback", authCallback);
 
