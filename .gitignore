@@ -1,21 +1,19 @@
-javascript/node_modules/
-javascript/.env
-javascript/dist/
-javascript/build/
-javascript/.parcel-cache/
-javascript/.next/
-javascript/.vite/
+backend/javascript/node_modules/
+backend/javascript/.env
+backend/javascript/dist/
+backend/javascript/build/
+backend/javascript/.parcel-cache/
+backend/javascript/.next/
+backend/javascript/.vite/
 
-python/__pycache__/
-python/*.pyc
-python/env/
-python/.env
-python/.venv/
-python/.mypy_cache/
-python/.pytest_cache/
-python/.vscode/
+backend/python/__pycache__/
+backend/python/*.pyc
+backend/python/env/
+backend/python/.env
+backend/python/.venv/
+backend/python/.mypy_cache/
+backend/python/.pytest_cache/
+backend/python/.vscode/
 
 .vscode/
 
-.DS_Store
-Thumbs.db
