@@ -53,19 +53,23 @@ export const stripeWebhook = async (req, res) => {
 };
 
 async function handlePaymentSucceeded(invoice) {
-  console.log("✅ Handling payment success:", invoice);
+  const subscriptionId = invoice.parent.subscription_details.subscription;
 
-  const containerId = invoice.metadata?.containerId;
-  const planType = invoice.metadata?.planType;
-  const userId = invoice.metadata?.user;
-  const stripeCustomerId = invoice.customer;
-  const subscriptionId = invoice.subscription;
+  if (!subscriptionId)
+    throw new Error("❗Missing subscriptionId in payment success");
+
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+
+  const metadata = subscription.metadata;
+
+  const containerId = metadata.containerId;
+  const stripeCustomerId = subscription.customer;
+  const userId = metadata.user;
+  const planType = metadata.planType;
 
   if (!containerId || !stripeCustomerId || !userId || !planType) {
     throw new Error("❗Missing metadata in payment success");
   }
-
-  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
   const startDate = new Date();
   const endDate = new Date(startDate);
