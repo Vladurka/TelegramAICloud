@@ -2,13 +2,9 @@ import { sendToQueue } from "../lib/rabbitmq.js";
 import { Agent } from "../models/agent.model.js";
 import { User } from "../models/user.model.js";
 import { MongoNetworkError, MongoServerError } from "mongodb";
-import { buildAgentPayloadForUpdate } from "../utils/agent.utils.js";
 import { RabbitMQNotConnectedError } from "../errors/RabbitMQNotConnectedError.js";
 import { encryptAESGCM } from "../utils/hash.utils.js";
 import axios from "axios";
-import dotenv from "dotenv";
-
-dotenv.config();
 
 export const createAgent = async (req, res, next) => {
   try {
@@ -38,7 +34,7 @@ export const createAgent = async (req, res, next) => {
       typingTime: typingTime ?? 0,
       reactionTime: reactionTime ?? 0,
       model: model.trim(),
-      status: "draft",
+      status: "frozen",
     });
 
     let response;
@@ -52,12 +48,14 @@ export const createAgent = async (req, res, next) => {
         }
       );
     } catch (err) {
+      console.error("Failed to create subscription");
       return res.status(500).json({ error: "Failed to create subscription" });
     }
-
-    const url = response.data.url;
-
-    return res.status(200).json({ "Pay to start": url, status: "draft" });
+    return res.status(200).json({
+      message: "Redirect to complete payment to unfreeze agent",
+      url: response.data.url,
+      status: "frozen",
+    });
   } catch (err) {
     if (err instanceof MongoServerError && err.code === 11000) {
       return res.status(400).json({ error: "Agent already exists" });
@@ -76,12 +74,47 @@ export const createAgent = async (req, res, next) => {
   }
 };
 
-export const startAgent = async (payload) => {
-  const agent = await Agent.findOne({ apiId: payload.api_id });
-  agent.status = "active";
-  agent.save();
+export const unfreezeAgent = async (req, res, next) => {
+  try {
+    const { apiId, clerkId, planType } = req.body;
 
-  await sendToQueue("create_or_update_agent", payload);
+    const user = await User.findOne({ clerkId });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const agent = await Agent.findOne({
+      apiId,
+      user: user._id,
+      status: "frozen",
+    });
+    if (!agent) return res.status(404).json({ error: "Agent not found" });
+
+    let response;
+    try {
+      response = await axios.post(
+        `${process.env.SERVER_URL}/subscription/create`,
+        {
+          clerkId: clerkId,
+          containerId: apiId,
+          planType: planType,
+        }
+      );
+    } catch (err) {
+      console.error("Failed to create subscription");
+      return res.status(500).json({ error: "Failed to create subscription" });
+    }
+    return res.status(200).json({
+      message: "Redirect to complete payment to unfreeze agent",
+      url: response.data.url,
+      status: "frozen",
+    });
+  } catch (err) {
+    if (err instanceof MongoNetworkError) {
+      return res.status(503).json({
+        error: "Database connection error. Please try again later.",
+      });
+    }
+    next(err);
+  }
 };
 
 export const getAgentsByUser = async (req, res, next) => {
@@ -191,6 +224,8 @@ export const deleteAgent = async (req, res, next) => {
         containerId: apiId,
       });
     } catch (err) {
+      await Agent.create(agent);
+      console.error("Failed to cancel subscription");
       return res.status(500).json({ error: "Failed to cancel subscription" });
     }
 

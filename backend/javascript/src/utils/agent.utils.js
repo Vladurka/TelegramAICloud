@@ -1,3 +1,6 @@
+import { sendToQueue } from "../lib/rabbitmq.js";
+import { Agent } from "../models/agent.model.js";
+
 export function buildAgentPayloadForUpdate(userId, agentData, existingAgent) {
   return {
     user_id: userId,
@@ -25,3 +28,9 @@ export function buildAgentPayloadFromAgent(userId, agent) {
     model: agent.model,
   };
 }
+
+export const startAgent = async (payload) => {
+  await Agent.findOneAndUpdate({ apiId: payload.api_id }, { status: "active" });
+
+  await sendToQueue("create_or_update_agent", payload);
+};

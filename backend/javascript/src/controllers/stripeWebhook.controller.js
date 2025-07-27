@@ -1,13 +1,11 @@
 import { stripe } from "../lib/stripe.js";
-import dotenv from "dotenv";
 import { User } from "../models/user.model.js";
 import { sendToQueue } from "../lib/rabbitmq.js";
 import { Subscription } from "../models/subscription.model.js";
 import { Agent } from "../models/agent.model.js";
 import { buildAgentPayloadFromAgent } from "../utils/agent.utils.js";
-import { startAgent } from "./agent.controller.js";
-
-dotenv.config();
+import { startAgent } from "../utils/agent.utils.js";
+import axios from "axios";
 
 export const stripeWebhook = async (req, res) => {
   const sig = req.headers["stripe-signature"];
@@ -28,26 +26,9 @@ export const stripeWebhook = async (req, res) => {
 
   try {
     switch (event.type) {
-      case "checkout.session.completed":
-        console.log("▶️ Handling checkout.session.completed");
-        await handleCheckoutSessionCompleted(event.data.object);
-        break;
-
-      case "payment_intent.payment_failed":
-        console.log("▶️ Handling payment_intent.payment_failed");
-
-        const paymentIntent = event.data.object;
-
-        const sessions = await stripe.checkout.sessions.list({
-          payment_intent: paymentIntent.id,
-          limit: 1,
-        });
-
-        const session = sessions.data[0];
-
-        if (!session) throw new Error("❗Missing checkout session");
-
-        await handleCheckoutSessionFailed(session);
+      case "invoice.payment_succeeded":
+        console.log("▶️ Handling invoice.payment_succeeded");
+        await handlePaymentSucceeded(event.data.object);
         break;
 
       case "invoice.payment_failed":
@@ -71,16 +52,18 @@ export const stripeWebhook = async (req, res) => {
   }
 };
 
-async function handleCheckoutSessionCompleted(session) {
-  const { containerId, planType, user: userId } = session.metadata || {};
-  const stripeCustomerId = session.customer;
-  const subscriptionId = session.subscription;
+async function handlePaymentSucceeded(invoice) {
+  console.log("✅ Handling payment success:", invoice);
+
+  const containerId = invoice.metadata?.containerId;
+  const planType = invoice.metadata?.planType;
+  const userId = invoice.metadata?.user;
+  const stripeCustomerId = invoice.customer;
+  const subscriptionId = invoice.subscription;
 
   if (!containerId || !stripeCustomerId || !userId || !planType) {
-    throw new Error("❗ Missing required session metadata");
+    throw new Error("❗Missing metadata in payment success");
   }
-
-  if (!subscriptionId) throw new Error("❗Missing subscription ID");
 
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
@@ -93,24 +76,41 @@ async function handleCheckoutSessionCompleted(session) {
     endDate.setFullYear(startDate.getFullYear() + 1);
   }
 
-  await Subscription.create({
-    user: userId,
-    containerId,
-    stripeSubscriptionId: subscription.id,
-    planType,
-    currentPeriodStart: startDate,
-    currentPeriodEnd: endDate,
-    status: subscription.status,
+  const existing = await Subscription.findOne({
+    stripeSubscriptionId: subscriptionId,
   });
 
-  const user = await User.findOne({ stripeCustomerId });
+  if (!existing) {
+    await Subscription.create({
+      user: userId,
+      containerId,
+      stripeSubscriptionId: subscription.id,
+      planType,
+      currentPeriodStart: startDate,
+      currentPeriodEnd: endDate,
+      status: subscription.status,
+    });
+    console.log("📦 Created new subscription record");
+  } else {
+    await Subscription.findOneAndUpdate(
+      { stripeSubscriptionId: subscriptionId },
+      {
+        status: "active",
+        currentPeriodStart: startDate,
+        currentPeriodEnd: endDate,
+      }
+    );
+    console.log("🔄 Updated existing subscription");
+  }
 
+  const user = await User.findOne({ stripeCustomerId });
   if (!user) throw new Error(`❗User with ${stripeCustomerId} not found`);
 
-  if (!user.currentSubscriptionIds.includes(subscriptionId))
+  if (!user.currentSubscriptionIds.includes(subscriptionId)) {
     user.currentSubscriptionIds.push(subscriptionId);
-
-  await user.save();
+    await user.save();
+    console.log("👤 Updated user's subscription IDs");
+  }
 
   const agent = await Agent.findOneAndUpdate(
     { apiId: containerId },
@@ -122,24 +122,7 @@ async function handleCheckoutSessionCompleted(session) {
   const payload = buildAgentPayloadFromAgent(userId, agent);
   await startAgent(payload);
 
-  console.log("✅ Subscription started for container:", containerId);
-}
-
-async function handleCheckoutSessionFailed(session) {
-  console.log("⚠️ Handling failed session:", session);
-
-  const containerId = session.metadata?.containerId;
-  const stripeCustomerId = session.customer;
-
-  if (!containerId || !stripeCustomerId) {
-    throw new Error(
-      "❗ Missing containerId or stripeCustomerId in failed session"
-    );
-  }
-
-  await Agent.findOneAndUpdate({ apiId: containerId }, { status: "frozen" });
-
-  console.log("✅ Subscription marked as failed for container:", containerId);
+  console.log("✅ Agent started for container:", containerId);
 }
 
 async function handlePaymentFailed(invoice) {
@@ -154,18 +137,18 @@ async function handlePaymentFailed(invoice) {
     );
   }
 
-  await Agent.findOneAndUpdate({ apiId: containerId }, { status: "frozen" });
+  const exists = await Subscription.findOne({
+    containerId,
+    status: "active",
+  });
 
-  await Subscription.findOneAndUpdate(
-    { stripeSubscriptionId: invoice.subscription },
-    {
-      status: "failed",
-    }
-  );
+  if (exists) {
+    await Agent.findOneAndUpdate({ apiId: containerId }, { status: "frozen" });
 
-  await sendToQueue("stop_agent", { api_id: containerId });
-
-  console.log("✅ Subscription marked as failed for container:", containerId);
+    await axios.post(`${process.env.SERVER_URL}/subscription/cancel`, {
+      containerId,
+    });
+  }
 }
 
 async function handleSubscriptionCanceled(subscription) {

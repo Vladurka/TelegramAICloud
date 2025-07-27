@@ -1,10 +1,7 @@
 import { stripe } from "../lib/stripe.js";
 import { User } from "../models/user.model.js";
 import { Subscription } from "../models/subscription.model.js";
-import dotenv from "dotenv";
 import { MongoNetworkError } from "mongodb";
-
-dotenv.config();
 
 export const createSubscription = async (req, res, next) => {
   const { clerkId, containerId, planType } = req.body;

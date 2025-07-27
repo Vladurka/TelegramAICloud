@@ -58,7 +58,7 @@ const agentSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      enu: ["active", "frozen", "draft"],
+      enu: ["active", "frozen"],
     },
   },
   { timestamps: true }
