@@ -4,9 +4,11 @@ import { Button } from "../components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "../components/ui/sheet";
 import { useAuth, UserButton } from "@clerk/clerk-react";
 import { SignInOAuthButton } from "./SignInOAuthButton";
+import { useNavigate } from "react-router-dom";
 
 export const Navbar = () => {
   const { isSignedIn } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <header className="fixed top-0 left-0 w-full z-50 border-b border-border bg-background/80 backdrop-blur">
@@ -30,7 +32,11 @@ export const Navbar = () => {
         <div className="hidden md:block">
           {isSignedIn ? (
             <div className="flex items-center gap-4">
-              <Button size="lg" className="text-base px-8 py-6 cursor-pointer">
+              <Button
+                size="lg"
+                className="text-base px-8 py-6 cursor-pointer"
+                onClick={() => navigate("/agents")}
+              >
                 Manage Agents
               </Button>
               <UserButton />
@@ -58,7 +64,9 @@ export const Navbar = () => {
                 <Link to="#faq" className="">
                   FAQ
                 </Link>
-                <Button className="mt-6 ">My Agents</Button>
+                <Button className="mt-6 " onClick={() => navigate("/agents")}>
+                  My Agents
+                </Button>
               </nav>
             </SheetContent>
           </Sheet>

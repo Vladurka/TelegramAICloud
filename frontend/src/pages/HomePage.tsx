@@ -18,7 +18,7 @@ export const HomePage = () => {
           <h1 className="text-5xl font-extrabold tracking-tight leading-tight sm:text-6xl mb-6">
             Supercharge Your Telegram with
             <br />
-            <span className=" text-blue-400">AI Agents</span>
+            <span className="text-blue-400">AI Agents</span>
           </h1>
 
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">

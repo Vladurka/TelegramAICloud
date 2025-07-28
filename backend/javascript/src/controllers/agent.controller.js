@@ -4,6 +4,7 @@ import { User } from "../models/user.model.js";
 import { MongoNetworkError, MongoServerError } from "mongodb";
 import { RabbitMQNotConnectedError } from "../errors/RabbitMQNotConnectedError.js";
 import { encryptAESGCM } from "../utils/hash.utils.js";
+import { Subscription } from "../models/subscription.model.js";
 import axios from "axios";
 
 export const createAgent = async (req, res, next) => {
@@ -124,16 +125,29 @@ export const getAgentsByUser = async (req, res, next) => {
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const agents = await Agent.find({ user: user._id }).select(
-      "-_id apiId name"
+      "-_id apiId name status"
     );
-    return res.status(200).json(agents);
+
+    const agentsWithPlans = await Promise.all(
+      agents.map(async (agent) => {
+        const sub = await Subscription.findOne({
+          containerId: agent.apiId,
+        }).select("planType -_id");
+        return {
+          ...agent.toObject(),
+          planType: sub.planType,
+        };
+      })
+    );
+
+    return res.status(200).json({ agents: agentsWithPlans });
   } catch (err) {
-    next(err);
-    if (err instanceof MongoNetworkError) {
+    if (err.name === "MongoNetworkError") {
       return res.status(503).json({
         error: "Database connection error. Please try again later.",
       });
     }
+    next(err);
   }
 };
 
