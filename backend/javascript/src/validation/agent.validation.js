@@ -10,31 +10,22 @@ const allowedModels = [
 ];
 
 export const createAgentSchema = z.object({
-  clerkId: z.string().min(5, "clerkId is required"),
+  clerkId: z.string().min(25).max(40).startsWith("user_"),
   apiId: z
     .number()
     .min(10000000, "apiId must be at least 8 digits")
     .max(99999999, "apiId must be at most 8 digits"),
 
-  apiHash: z.string().min(20, "apiHash is required"),
-  sessionString: z.string().min(200, "sessionString is required"),
-  prompt: z.string().min(1, "Prompt is required"),
+  apiHash: z.string().min(30).max(40),
+  sessionString: z.string().min(200).max(400),
+  prompt: z.string().min(1).max(1000),
 
-  typingTime: z.number().min(0, "typingTime must be ≥ 0").default(0).optional(),
-  reactionTime: z
-    .number()
-    .min(0, "reactionTime must be ≥ 0")
-    .default(0)
-    .optional(),
+  typingTime: z.number().min(0).max(10).default(0).optional(),
+  reactionTime: z.number().min(0).max(120).default(0).optional(),
 
-  model: z
-    .enum(allowedModels, {
-      message: `Model must be one of: ${allowedModels.join(", ")}`,
-    })
-    .default(allowedModels[0])
-    .optional(),
+  model: z.enum(allowedModels).default(allowedModels[0]).optional(),
 
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1).max(40),
   planType: z.enum(["month", "year"]),
 });
 

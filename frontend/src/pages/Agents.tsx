@@ -12,10 +12,12 @@ import { Plus } from "lucide-react";
 import { useAgentStore } from "../stores/useAgentStore";
 import { Loader } from "../components/Loader";
 import { useUser } from "@clerk/clerk-react";
+import { useNavigate } from "react-router-dom";
 
 export const Agents = () => {
   const { agentDTOs, getAgents, isLoading } = useAgentStore();
   const { user } = useUser();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!user) return;
@@ -104,6 +106,7 @@ export const Agents = () => {
           <Button
             size="lg"
             className="flex items-center gap-3 px-7 py-6 text-lg font-semibold shadow-xl hover:shadow-blue-500/20 transition-all duration-200 rounded-xl cursor-pointer"
+            onClick={() => navigate("/create")}
           >
             <Plus />
             Create Agent

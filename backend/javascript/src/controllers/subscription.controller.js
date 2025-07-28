@@ -35,8 +35,8 @@ export const createSubscription = async (req, res, next) => {
           user: user._id.toString(),
         },
       },
-      success_url: "http://localhost:3000/success",
-      cancel_url: "http://localhost:3000/cancel",
+      success_url: process.env.CLIENT_URL + "/agents",
+      cancel_url: process.env.CLIENT_URL + "/agents",
     });
 
     res

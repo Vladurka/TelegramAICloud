@@ -8,8 +8,10 @@ import {
   CardDescription,
 } from "../components/ui/card";
 import { Bot, Rocket, Settings2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export const HomePage = () => {
+  const navigate = useNavigate();
   return (
     <>
       <Navbar />
@@ -26,7 +28,11 @@ export const HomePage = () => {
             account.
             <br /> No coding. Full control. Instant results.
           </p>
-          <Button size="lg" className="text-base px-8 py-6 cursor-pointer">
+          <Button
+            size="lg"
+            className="text-base px-8 py-6 cursor-pointer"
+            onClick={() => navigate("/create")}
+          >
             🚀 Launch Your First Agent
           </Button>
         </div>
