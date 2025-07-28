@@ -6,6 +6,7 @@ import { RabbitMQNotConnectedError } from "../errors/RabbitMQNotConnectedError.j
 import { encryptAESGCM } from "../utils/hash.utils.js";
 import { Subscription } from "../models/subscription.model.js";
 import axios from "axios";
+import { buildAgentPayloadForUpdate } from "../utils/agent.utils.js";
 
 export const createAgent = async (req, res, next) => {
   try {
@@ -161,17 +162,19 @@ export const getAgentById = async (req, res, next) => {
     const user = await User.findOne({ clerkId });
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    const agent = await Agent.findOne({ apiId, user: user._id });
+    const agent = await Agent.findOne({ apiId, user: user._id }).select(
+      "-_id name status prompt typingTime reactionTime model"
+    );
     if (!agent) return res.status(404).json({ error: "Agent not found" });
 
-    return res.status(200).json(agent);
+    return res.status(200).json({ agent: agent });
   } catch (err) {
-    next(err);
     if (err instanceof MongoNetworkError) {
       return res.status(503).json({
         error: "Database connection error. Please try again later.",
       });
     }
+    next(err);
   }
 };
 
@@ -238,7 +241,9 @@ export const deleteAgent = async (req, res, next) => {
         containerId: apiId,
       });
     } catch (err) {
-      await Agent.create(agent);
+      const agentData = agent.toObject();
+      delete agentData._id;
+      await Agent.create(agentData);
       console.error("Failed to cancel subscription");
       return res.status(500).json({ error: "Failed to cancel subscription" });
     }

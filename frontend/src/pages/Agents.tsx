@@ -49,6 +49,7 @@ export const Agents = () => {
                 <Card
                   key={agent.apiId}
                   className="w-[300px] border-border shadow-md hover:shadow-blue-500/10 transition-shadow cursor-pointer"
+                  onClick={() => navigate(`/agent/${agent.apiId}`)}
                 >
                   <CardHeader>
                     <CardTitle className="flex flex-col gap-2">
@@ -71,8 +72,8 @@ export const Agents = () => {
                           variant="outline"
                           className={`text-xs px-2 py-0.5 ${
                             agent.planType === "year"
-                              ? "bg-yellow-600/20 text-yellow-400 border-yellow-600/30"
-                              : "bg-indigo-600/20 text-indigo-400 border-indigo-600/30"
+                              ? "bg-purple-500/20 text-purple-500 border-purple-500/30"
+                              : "bg-indigo-500/20 text-indigo-500 border-indigo-500/30"
                           }`}
                         >
                           {agent.planType === "year" ? "Yearly" : "Monthly"}

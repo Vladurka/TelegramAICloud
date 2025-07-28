@@ -24,14 +24,7 @@ import { useEffect } from "react";
 import { useUser } from "@clerk/clerk-react";
 import { useAgentStore } from "../stores/useAgentStore";
 
-const allowedModels = [
-  "gpt-3.5-turbo",
-  "gpt-4o",
-  "gpt-4o-mini",
-  "o4-mini",
-  "gpt-4.1-mini",
-  "gpt-4.1-nano",
-];
+const allowedModels = ["gpt-3.5-turbo"];
 
 const createAgentSchema = z.object({
   clerkId: z.string().min(25).max(40).startsWith("user_"),
@@ -115,7 +108,7 @@ export const CreateAgent = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="month">Monthly – $10</SelectItem>
-                      <SelectItem value="year">Yearly – $110</SelectItem>
+                      <SelectItem value="year">Yearly – $100</SelectItem>
                     </SelectContent>
                   </Select>
 

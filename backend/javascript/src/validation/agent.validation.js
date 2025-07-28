@@ -1,13 +1,6 @@
 import { z } from "zod";
 
-const allowedModels = [
-  "gpt-3.5-turbo",
-  "gpt-4o",
-  "gpt-4o-mini",
-  "o4-mini",
-  "gpt-4.1-mini",
-  "gpt-4.1-nano",
-];
+const allowedModels = ["gpt-3.5-turbo"];
 
 export const createAgentSchema = z.object({
   clerkId: z.string().min(25).max(40).startsWith("user_"),

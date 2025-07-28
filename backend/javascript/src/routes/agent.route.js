@@ -20,11 +20,11 @@ const router = express.Router();
 
 // router.use(protectRoute);
 
-router.post("/create", validateRequest(createAgentSchema), createAgent);
+router.post("/", validateRequest(createAgentSchema), createAgent);
 router.post("/unfreeze", validateRequest(createSubSchema), unfreezeAgent);
 router.get("/getByUser/:clerkId", getAgentsByUser);
-router.get("/get/:apiId/:clerkId", protectRoute, getAgentById);
-router.put("/update", validateRequest(updateAgentSchema), updateAgent);
-router.delete("/delete", deleteAgent);
+router.get("/:apiId/:clerkId", getAgentById);
+router.put("/", validateRequest(updateAgentSchema), updateAgent);
+router.delete("/", deleteAgent);
 
 export default router;
