@@ -15,7 +15,7 @@ import { useUser } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
 
 export const Agents = () => {
-  const { agentDTOs, getAgents, isLoading } = useAgentStore();
+  const { agentDTOs, getAgents, isLoading, error } = useAgentStore();
   const { user } = useUser();
   const navigate = useNavigate();
 
@@ -102,12 +102,13 @@ export const Agents = () => {
             </div>
           )}
         </div>
+        {error && <p className="text-sm text-red-500">{error}</p>}
 
         <div className="flex justify-center mt-12">
           <Button
             size="lg"
             className="flex items-center gap-3 px-7 py-6 text-lg font-semibold shadow-xl hover:shadow-blue-500/20 transition-all duration-200 rounded-xl cursor-pointer"
-            onClick={() => navigate("/create")}
+            onClick={() => navigate("/get-telegram-code")}
           >
             <Plus />
             Create Agent

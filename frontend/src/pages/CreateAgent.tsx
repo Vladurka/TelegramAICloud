@@ -23,6 +23,7 @@ import { Navbar } from "../components/Navbar";
 import { useEffect } from "react";
 import { useUser } from "@clerk/clerk-react";
 import { useAgentStore } from "../stores/useAgentStore";
+import { useAuth } from "@clerk/clerk-react";
 
 const allowedModels = ["gpt-3.5-turbo"];
 
@@ -58,11 +59,14 @@ export const CreateAgent = () => {
     resolver: zodResolver(createAgentSchema),
   });
 
-  const onSubmit = async (data: CreateAgentInput) =>
-    (window.location.href = await createAgent(data));
+  const { isSignedIn } = useAuth();
+
+  const onSubmit = async (data: CreateAgentInput) => {
+    if (isSignedIn) window.location.href = await createAgent(data);
+  };
 
   const { user } = useUser();
-  const { createAgent } = useAgentStore();
+  const { createAgent, error } = useAgentStore();
 
   useEffect(() => {
     if (!user) return;
@@ -228,10 +232,18 @@ export const CreateAgent = () => {
               <Button
                 type="submit"
                 className="w-full cursor-pointer"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !isSignedIn}
               >
                 {isSubmitting ? "Creating..." : "Create Agent"}
               </Button>
+              {!isSignedIn && (
+                <p className="text-sm text-red-500">
+                  You must be signed in to create an agent.
+                </p>
+              )}
+              {error && (
+                <p className="text-sm text-red-500 text-center">{error}</p>
+              )}
             </form>
           </CardContent>
         </Card>

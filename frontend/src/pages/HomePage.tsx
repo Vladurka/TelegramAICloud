@@ -31,7 +31,7 @@ export const HomePage = () => {
           <Button
             size="lg"
             className="text-base px-8 py-6 cursor-pointer"
-            onClick={() => navigate("/create")}
+            onClick={() => navigate("/get-telegram-code")}
           >
             🚀 Launch Your First Agent
           </Button>

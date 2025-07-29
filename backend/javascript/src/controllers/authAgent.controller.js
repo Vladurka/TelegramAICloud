@@ -17,7 +17,7 @@ export const sendCode = async (req, res, next) => {
       })
     );
 
-    res.json({
+    res.status(200).json({
       session: client.session.save(),
       phoneCodeHash: result.phoneCodeHash,
     });
@@ -58,7 +58,7 @@ export const confirmCode = async (req, res, next) => {
           }
         );
 
-        res.json({ ok: true, session: client.session.save() });
+        res.status(200).json({ ok: true, session: client.session.save() });
       } catch (passErr) {
         res.status(401).json({
           error: "Invalid 2FA password",

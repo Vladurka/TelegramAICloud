@@ -4,6 +4,8 @@ import { AuthCallbackPage } from "./pages/AuthCallbackPage";
 import { Agents } from "./pages/Agents";
 import { CreateAgent } from "./pages/CreateAgent";
 import { AgentDetails } from "./pages/AgentDetails";
+import { GetTelegramCode } from "./pages/GetTelegramCode";
+import { ConfirmTelegramCode } from "./pages/ConfirmTelegramCode";
 
 export const App = () => {
   return (
@@ -12,6 +14,12 @@ export const App = () => {
         <Route path="/" element={<HomePage />} />
         <Route path="/agents" element={<Agents />} />
         <Route path="/agent/:id" element={<AgentDetails />} />
+        <Route path="/get-telegram-code" element={<GetTelegramCode />} />
+        <Route
+          path="/confirm-telegram-code"
+          element={<ConfirmTelegramCode />}
+        />
+
         <Route path="/create" element={<CreateAgent />} />
         <Route path="/auth-callback" element={<AuthCallbackPage />} />
       </Routes>
