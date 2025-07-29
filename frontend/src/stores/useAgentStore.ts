@@ -3,6 +3,7 @@ import { create } from "zustand";
 import type { AgentDTO } from "../types";
 import type { CreateAgentInput } from "../pages/CreateAgent";
 import type { AgentAdvancedDTO } from "../types";
+import type { AgentUpdateInput } from "../pages/AgentDetails";
 
 export interface AgentStore {
   createAgent: (data: CreateAgentInput) => Promise<string>;
@@ -14,6 +15,8 @@ export interface AgentStore {
 
   getAgentById: (apiId: number, clerkId: string) => Promise<void>;
   agent: AgentAdvancedDTO | null;
+
+  updateAgent: (data: AgentUpdateInput) => Promise<boolean>;
 
   deleteAgent: (apiId: number, clerkId: string) => Promise<void>;
 
@@ -78,6 +81,23 @@ export const useAgentStore = create<AgentStore>((set) => ({
       set({ agent: data.agent });
     } catch (error: any) {
       set({ error: error.message });
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  updateAgent: async (data) => {
+    try {
+      set({ isLoading: true, error: null });
+      const res = await axiosInstance.put("/agent", data);
+      if (res.status === 200) {
+        return true;
+      }
+      set({ error: "Unexpected response from server" });
+      return false;
+    } catch (error: any) {
+      set({ error: error.message });
+      return false;
     } finally {
       set({ isLoading: false });
     }
