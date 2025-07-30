@@ -9,7 +9,6 @@ const subscriptionSchema = new mongoose.Schema({
   containerId: {
     type: Number,
     required: true,
-    trim: true,
   },
   stripeSubscriptionId: {
     type: String,

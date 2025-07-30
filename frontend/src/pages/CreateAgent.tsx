@@ -203,7 +203,7 @@ export const CreateAgent = () => {
                   <Label className="mb-2">Typing Time</Label>
                   <Input
                     type="number"
-                    step="1"
+                    step="0.1"
                     {...register("typingTime", { valueAsNumber: true })}
                     defaultValue={0}
                   />

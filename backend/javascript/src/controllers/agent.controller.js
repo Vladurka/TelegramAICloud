@@ -133,6 +133,7 @@ export const getAgentsByUser = async (req, res, next) => {
       agents.map(async (agent) => {
         const sub = await Subscription.findOne({
           containerId: agent.apiId,
+          status: "active",
         }).select("planType -_id");
         return {
           ...agent.toObject(),
@@ -167,7 +168,17 @@ export const getAgentById = async (req, res, next) => {
     );
     if (!agent) return res.status(404).json({ error: "Agent not found" });
 
-    return res.status(200).json({ agent: agent });
+    const sub = await Subscription.findOne({
+      containerId: apiId,
+      status: "active",
+    }).select("planType -_id");
+
+    if (!sub) return res.status(404).json({ error: "Subscription not found" });
+
+    const agentObj = agent.toObject();
+    agentObj.planType = sub.planType;
+
+    return res.status(200).json({ agent: agentObj });
   } catch (err) {
     if (err instanceof MongoNetworkError) {
       return res.status(503).json({
