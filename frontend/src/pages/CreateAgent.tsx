@@ -1,5 +1,5 @@
 import { useForm } from "react-hook-form";
-import { z } from "zod";
+import { set, z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { Button } from "../components/ui/button";
@@ -23,7 +23,9 @@ import { Navbar } from "../components/Navbar";
 import { useEffect } from "react";
 import { useUser } from "@clerk/clerk-react";
 import { useAgentStore } from "../stores/useAgentStore";
+import { useAgentAuthStore } from "../stores/useAgentAuthStore";
 import { useAuth } from "@clerk/clerk-react";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const allowedModels = ["gpt-3.5-turbo"];
 
@@ -59,14 +61,15 @@ export const CreateAgent = () => {
     resolver: zodResolver(createAgentSchema),
   });
 
-  const { isSignedIn } = useAuth();
-
-  const onSubmit = async (data: CreateAgentInput) => {
-    if (isSignedIn) window.location.href = await createAgent(data);
-  };
-
   const { user } = useUser();
   const { createAgent, error } = useAgentStore();
+  const { getTempData, apiId, apiHash, phone, phoneHash } = useAgentAuthStore();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const allowed = location.state?.allowed;
+  const { isSignedIn } = useAuth();
+
+  if (!allowed) navigate("/");
 
   useEffect(() => {
     if (!user) return;
@@ -74,6 +77,25 @@ export const CreateAgent = () => {
     setValue("planType", "year");
     setValue("model", allowedModels[0]);
   }, [setValue, user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const loadAndSet = async () => {
+      await getTempData(user.id);
+
+      if (apiId && apiHash) {
+        setValue("apiId", apiId);
+        setValue("apiHash", apiHash);
+      }
+    };
+
+    loadAndSet();
+  }, [user, getTempData, apiId, apiHash, setValue]);
+
+  const onSubmit = async (data: CreateAgentInput) => {
+    if (isSignedIn) window.location.href = await createAgent(data);
+  };
 
   return (
     <>

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const sendCodeSchema = z.object({
+  clerkId: z.string().min(25).max(40).startsWith("user_"),
   apiId: z
     .number()
     .min(10000000, "apiId must be at least 8 digits")

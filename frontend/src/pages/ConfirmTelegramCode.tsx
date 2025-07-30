@@ -1,8 +1,9 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useUser } from "@clerk/clerk-react";
 
 import {
   Card,
@@ -40,14 +41,46 @@ export const ConfirmTelegramCode = () => {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ConfirmCodeInput>({
     resolver: zodResolver(confirmCodeSchema),
   });
 
-  const { confirmTelegramCode, isLoading, error } = useAgentAuthStore();
+  const {
+    confirmTelegramCode,
+    getTempData,
+    apiId,
+    apiHash,
+    phone,
+    phoneHash,
+    isLoading,
+    error,
+  } = useAgentAuthStore();
+  const { user } = useUser();
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const allowed = location.state?.allowed;
+
+  if (!allowed) navigate("/");
+
+  useEffect(() => {
+    if (!user) return;
+
+    const loadData = async () => await getTempData(user.id);
+
+    loadData();
+  }, [user, getTempData]);
+
+  useEffect(() => {
+    if (!apiId || !apiHash || !phone || !phoneHash) return;
+
+    setValue("apiId", apiId);
+    setValue("apiHash", apiHash);
+    setValue("phone", phone);
+    setValue("phoneCodeHash", phoneHash);
+  }, [apiHash, apiId, phone, phoneHash, setValue]);
 
   const onSubmit = async (data: ConfirmCodeInput) => {
     setSuccess(await confirmTelegramCode(data));
@@ -161,7 +194,11 @@ export const ConfirmTelegramCode = () => {
                 </p>
                 <Button
                   className="w-full cursor-pointer"
-                  onClick={() => navigate("/create")}
+                  onClick={() =>
+                    navigate("/create", {
+                      state: { allowed: true },
+                    })
+                  }
                 >
                   Continue to Create Agent
                 </Button>

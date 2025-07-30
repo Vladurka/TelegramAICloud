@@ -2,6 +2,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
+import { useUser } from "@clerk/clerk-react";
 
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
@@ -14,8 +15,10 @@ import {
 } from "../components/ui/card";
 import { Navbar } from "../components/Navbar";
 import { useAgentAuthStore } from "../stores/useAgentAuthStore";
+import { useEffect } from "react";
 
 const schema = z.object({
+  clerkId: z.string().min(25).max(40).startsWith("user_"),
   apiId: z
     .number()
     .min(10000000, "apiId must be at least 8 digits")
@@ -30,6 +33,7 @@ export const GetTelegramCode = () => {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<TelegramFormInput>({
     resolver: zodResolver(schema),
@@ -39,6 +43,12 @@ export const GetTelegramCode = () => {
     useAgentAuthStore();
 
   const navigate = useNavigate();
+  const { user } = useUser();
+
+  useEffect(() => {
+    if (!user) return;
+    setValue("clerkId", user.id);
+  }, [user, setValue]);
 
   const onSubmit = async (data: TelegramFormInput) => {
     await getTelegramCode(data);
@@ -125,7 +135,11 @@ export const GetTelegramCode = () => {
 
                 <Button
                   className="w-full bg-blue-400 hover:bg-blue-500 cursor-pointer"
-                  onClick={() => navigate("/confirm-telegram-code")}
+                  onClick={() =>
+                    navigate("/confirm-telegram-code", {
+                      state: { allowed: true },
+                    })
+                  }
                 >
                   Continue to Enter Code
                 </Button>
