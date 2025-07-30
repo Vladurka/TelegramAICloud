@@ -18,14 +18,14 @@ export const Navbar = () => {
         </Link>
 
         <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
-          <Link to="#features" className="hover:text-primary transition-colors">
-            Features
+          <Link to="/docs" className="hover:text-primary transition-colors">
+            Docs
           </Link>
           <Link to="#pricing" className="hover:text-primary transition-colors">
             Pricing
           </Link>
-          <Link to="#faq" className="hover:text-primary transition-colors">
-            FAQ
+          <Link to="/contacts" className="hover:text-primary transition-colors">
+            Contacts
           </Link>
         </nav>
 

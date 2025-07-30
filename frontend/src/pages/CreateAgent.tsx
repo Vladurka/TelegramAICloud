@@ -1,5 +1,5 @@
 import { useForm } from "react-hook-form";
-import { set, z } from "zod";
+import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { Button } from "../components/ui/button";
@@ -63,7 +63,7 @@ export const CreateAgent = () => {
 
   const { user } = useUser();
   const { createAgent, error } = useAgentStore();
-  const { getTempData, apiId, apiHash, phone, phoneHash } = useAgentAuthStore();
+  const { getTempData, apiId, apiHash } = useAgentAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
   const allowed = location.state?.allowed;
