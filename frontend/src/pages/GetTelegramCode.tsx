@@ -122,13 +122,6 @@ export const GetTelegramCode = () => {
                   <p className="break-all font-mono text-sm">{sessionString}</p>
                 </div>
 
-                <div>
-                  <Label className="text-xs text-muted-foreground">
-                    Phone Hash:
-                  </Label>
-                  <p className="break-all font-mono text-sm">{phoneHash}</p>
-                </div>
-
                 <p className="text-yellow-600 text-sm">
                   ⚠️ Save it. You will need it to create your agent.
                 </p>

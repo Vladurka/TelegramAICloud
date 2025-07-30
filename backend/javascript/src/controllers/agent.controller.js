@@ -135,6 +135,7 @@ export const getAgentsByUser = async (req, res, next) => {
           containerId: agent.apiId,
           status: "active",
         }).select("planType -_id");
+        if (!sub) return agent;
         return {
           ...agent.toObject(),
           planType: sub.planType,
@@ -173,7 +174,7 @@ export const getAgentById = async (req, res, next) => {
       status: "active",
     }).select("planType -_id");
 
-    if (!sub) return res.status(404).json({ error: "Subscription not found" });
+    if (!sub) return res.status(200).json({ agent: agent });
 
     const agentObj = agent.toObject();
     agentObj.planType = sub.planType;

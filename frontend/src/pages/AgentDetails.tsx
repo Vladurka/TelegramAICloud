@@ -133,16 +133,18 @@ export const AgentDetails = () => {
                   >
                     {agent.status === "active" ? "Active" : "Frozen"}
                   </Badge>
-                  <Badge
-                    variant="outline"
-                    className={`text-sm px-4 py-1 rounded-full ${
-                      agent.planType === "year"
-                        ? "text-purple-500 border-purple-500"
-                        : "text-indigo-500 border-indigo-500"
-                    }`}
-                  >
-                    {agent.planType === "year" ? "Yearly" : "Monthly"}
-                  </Badge>
+                  {agent.planType && (
+                    <Badge
+                      variant="outline"
+                      className={`text-sm px-4 py-1 rounded-full ${
+                        agent.planType === "year"
+                          ? "text-purple-500 border-purple-500"
+                          : "text-indigo-500 border-indigo-500"
+                      }`}
+                    >
+                      {agent.planType === "year" ? "Yearly" : "Monthly"}
+                    </Badge>
+                  )}
                   <Badge className="text-sm px-4 py-1 rounded-full">
                     {agent.model}
                   </Badge>

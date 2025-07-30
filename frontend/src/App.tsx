@@ -8,6 +8,7 @@ import { GetTelegramCode } from "./pages/GetTelegramCode";
 import { ConfirmTelegramCode } from "./pages/ConfirmTelegramCode";
 import { Documentation } from "./pages/Documentation";
 import { Contacts } from "./pages/Contacts";
+import { AuthenticateWithRedirectCallback } from "@clerk/clerk-react";
 
 export const App = () => {
   return (
@@ -24,6 +25,14 @@ export const App = () => {
         <Route path="/create" element={<CreateAgent />} />
         <Route path="/docs" element={<Documentation />} />
         <Route path="/contacts" element={<Contacts />} />
+        <Route
+          path="/sso-callback"
+          element={
+            <AuthenticateWithRedirectCallback
+              signUpForceRedirectUrl={"/auth-callback"}
+            />
+          }
+        />
         <Route path="/auth-callback" element={<AuthCallbackPage />} />
       </Routes>
     </>
