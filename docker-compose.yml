@@ -1,0 +1,56 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+  runner:
+    build:
+      context: ./backend/python/runner
+    image: ${DOCKER_IMAGE}
+    entrypoint: ["true"]
+    env_file:
+      - ./backend/python/.env
+    restart: on-failure
+
+  consumer:
+    build:
+      context: ./backend/python/consumer
+    container_name: agent-consumer
+    depends_on:
+      - rabbitmq
+      - runner
+    env_file:
+      - ./backend/python/.env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: on-failure
+
+  server:
+    build:
+      context: ./backend/javascript
+    container_name: backend-server
+    depends_on:
+      - rabbitmq
+    env_file:
+      - ./backend/javascript/.env
+    ports:
+      - 5000:5000
+    restart: on-failure
+
+  client:
+    build:
+      context: ./frontend
+    container_name: frontend-client
+    depends_on:
+      - server
+    env_file:
+      - ./frontend/.env
+    ports:
+      - 80:80
+    restart: on-failure
