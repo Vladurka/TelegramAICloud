@@ -20,7 +20,7 @@ const port = process.env.PORT || 5000;
 const allowedOrigins = [
   "http://localhost:8080",
   "http://localhost:5173",
-  "http://91.99.134.169",
+  "http://91.99.134.169:5173",
 ];
 
 app.use(
