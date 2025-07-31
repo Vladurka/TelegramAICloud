@@ -63,6 +63,12 @@ export const Documentation = () => {
                   <code>+1234567890</code>).
                 </li>
                 <li>
+                  <strong>Prompt</strong>: A set of rules and context that the
+                  agent should follow when replying. You can include company
+                  policies, product pricing, FAQs, or any other information the
+                  agent should be aware of.
+                </li>
+                <li>
                   <strong>Typing Time</strong>: Time (in seconds) it takes the
                   agent to type one character.
                 </li>

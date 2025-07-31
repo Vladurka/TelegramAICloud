@@ -2,7 +2,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
-import { useUser } from "@clerk/clerk-react";
+import { useUser, useAuth } from "@clerk/clerk-react";
 
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
@@ -16,6 +16,8 @@ import {
 import { Navbar } from "../components/Navbar";
 import { useAgentAuthStore } from "../stores/useAgentAuthStore";
 import { useEffect } from "react";
+import { HelpCircle } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const schema = z.object({
   clerkId: z.string().min(25).max(40).startsWith("user_"),
@@ -44,6 +46,7 @@ export const GetTelegramCode = () => {
 
   const navigate = useNavigate();
   const { user } = useUser();
+  const { isSignedIn } = useAuth();
 
   useEffect(() => {
     if (!user) return;
@@ -67,7 +70,12 @@ export const GetTelegramCode = () => {
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               <div>
-                <Label className="mb-2 block">API ID</Label>
+                <div className="mb-2 flex items-center gap-1">
+                  <Label>API ID</Label>
+                  <Link to="/docs" target="_blank" rel="noopener noreferrer">
+                    <HelpCircle className="w-4 h-4 text-muted-foreground hover:text-primary transition-colors cursor-pointer" />
+                  </Link>
+                </div>
                 <Input
                   type="number"
                   {...register("apiId", { valueAsNumber: true })}
@@ -78,7 +86,12 @@ export const GetTelegramCode = () => {
               </div>
 
               <div>
-                <Label className="mb-2 block">API Hash</Label>
+                <div className="mb-2 flex items-center gap-1">
+                  <Label>API HASH</Label>
+                  <Link to="/docs" target="_blank" rel="noopener noreferrer">
+                    <HelpCircle className="w-4 h-4 text-muted-foreground hover:text-primary transition-colors cursor-pointer" />
+                  </Link>
+                </div>
                 <Input type="text" {...register("apiHash")} />
                 {errors.apiHash && (
                   <p className="text-sm text-red-500">
@@ -102,7 +115,7 @@ export const GetTelegramCode = () => {
               <Button
                 type="submit"
                 className="w-full cursor-pointer"
-                disabled={isLoading}
+                disabled={isLoading || !isSignedIn}
               >
                 {isLoading ? "Sending..." : "Send Code"}
               </Button>
@@ -136,6 +149,13 @@ export const GetTelegramCode = () => {
                 >
                   Continue to Enter Code
                 </Button>
+              </div>
+            )}
+            {!isSignedIn && (
+              <div className="mt-6 space-y-4 bg-muted/40 p-4 rounded-lg border border-muted">
+                <p className="text-yellow-600 font-medium">
+                  You are not signed in. Please sign in to get Telegram code.
+                </p>
               </div>
             )}
           </CardContent>

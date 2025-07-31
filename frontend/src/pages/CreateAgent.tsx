@@ -26,6 +26,8 @@ import { useAgentStore } from "../stores/useAgentStore";
 import { useAgentAuthStore } from "../stores/useAgentAuthStore";
 import { useAuth } from "@clerk/clerk-react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { HelpCircle } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const allowedModels = ["gpt-3.5-turbo"];
 
@@ -174,7 +176,12 @@ export const CreateAgent = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label className="mb-2">API ID</Label>
+                  <div className="mb-2 flex items-center gap-1">
+                    <Label>API ID</Label>
+                    <Link to="/docs" target="_blank" rel="noopener noreferrer">
+                      <HelpCircle className="w-4 h-4 text-muted-foreground hover:text-primary transition-colors cursor-pointer" />
+                    </Link>
+                  </div>
                   <Input
                     type="number"
                     {...register("apiId", { valueAsNumber: true })}
@@ -187,7 +194,12 @@ export const CreateAgent = () => {
                   )}
                 </div>
                 <div>
-                  <Label className="mb-2">API Hash</Label>
+                  <div className="mb-2 flex items-center gap-1">
+                    <Label>API HASH</Label>
+                    <Link to="/docs" target="_blank" rel="noopener noreferrer">
+                      <HelpCircle className="w-4 h-4 text-muted-foreground hover:text-primary transition-colors cursor-pointer" />
+                    </Link>
+                  </div>
                   <Input {...register("apiHash")} />
                   {errors.apiHash && (
                     <p className="text-sm text-red-500">
@@ -208,7 +220,12 @@ export const CreateAgent = () => {
               </div>
 
               <div>
-                <Label className="mb-2">Prompt</Label>
+                <div className="mb-2 flex items-center gap-1">
+                  <Label>Prompt</Label>
+                  <Link to="/docs" target="_blank" rel="noopener noreferrer">
+                    <HelpCircle className="w-4 h-4 text-muted-foreground hover:text-primary transition-colors cursor-pointer" />
+                  </Link>
+                </div>
                 <Textarea
                   {...register("prompt")}
                   placeholder="What should this agent do?"
@@ -222,7 +239,12 @@ export const CreateAgent = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label className="mb-2">Typing Time</Label>
+                  <div className="mb-2 flex items-center gap-1">
+                    <Label>Typing Time</Label>
+                    <Link to="/docs" target="_blank" rel="noopener noreferrer">
+                      <HelpCircle className="w-4 h-4 text-muted-foreground hover:text-primary transition-colors cursor-pointer" />
+                    </Link>
+                  </div>
                   <Input
                     type="number"
                     step="0.1"
@@ -236,7 +258,12 @@ export const CreateAgent = () => {
                   )}
                 </div>
                 <div>
-                  <Label className="mb-2">Reaction Time</Label>
+                  <div className="mb-2 flex items-center gap-1">
+                    <Label>Reaction Time</Label>
+                    <Link to="/docs" target="_blank" rel="noopener noreferrer">
+                      <HelpCircle className="w-4 h-4 text-muted-foreground hover:text-primary transition-colors cursor-pointer" />
+                    </Link>
+                  </div>
                   <Input
                     type="number"
                     step="1"
@@ -258,15 +285,17 @@ export const CreateAgent = () => {
               >
                 {isSubmitting ? "Creating..." : "Create Agent"}
               </Button>
-              {!isSignedIn && (
-                <p className="text-sm text-red-500">
-                  You must be signed in to create an agent.
-                </p>
-              )}
               {error && (
                 <p className="text-sm text-red-500 text-center">{error}</p>
               )}
             </form>
+            {!isSignedIn && (
+              <div className="mt-6 space-y-4 bg-muted/40 p-4 rounded-lg border border-muted">
+                <p className="text-yellow-600 font-medium">
+                  You are not signed in. Please sign in to get Telegram code.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </section>

@@ -1,10 +1,9 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Menu } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "../components/ui/sheet";
 import { useAuth, UserButton } from "@clerk/clerk-react";
 import { SignInOAuthButton } from "./SignInOAuthButton";
-import { useNavigate } from "react-router-dom";
 
 export const Navbar = () => {
   const { isSignedIn } = useAuth();
@@ -12,35 +11,37 @@ export const Navbar = () => {
 
   return (
     <header className="fixed top-0 left-0 w-full z-50 border-b border-border bg-background/80 backdrop-blur">
-      <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-4">
-        <Link to="/" className="text-xl font-bold tracking-tight text-blue-400">
+      <div className="container mx-auto flex items-center justify-between px-4 py-4">
+        <Link
+          to="/"
+          className="text-lg md:text-xl font-bold tracking-tight text-blue-400"
+        >
           Telegram AI Cloud
         </Link>
 
-        <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
+        <nav className="hidden md:flex items-center gap-6 text-sm md:text-base text-muted-foreground">
           <Link to="/docs" className="hover:text-primary transition-colors">
             Docs
           </Link>
-          <Link to="#pricing" className="hover:text-primary transition-colors">
+          <a href="#pricing" className="hover:text-primary transition-colors">
             Pricing
-          </Link>
+          </a>
           <Link to="/contacts" className="hover:text-primary transition-colors">
             Contacts
           </Link>
         </nav>
 
-        <div className="hidden md:block">
+        <div className="hidden md:flex items-center gap-4">
           {isSignedIn ? (
-            <div className="flex items-center gap-4">
+            <>
               <Button
-                size="lg"
-                className="text-base px-8 py-6 cursor-pointer"
+                className="text-sm md:text-base px-4 md:px-6 py-2 cursor-pointer"
                 onClick={() => navigate("/agents")}
               >
                 Manage Agents
               </Button>
               <UserButton />
-            </div>
+            </>
           ) : (
             <SignInOAuthButton />
           )}
@@ -53,20 +54,33 @@ export const Navbar = () => {
                 <Menu className="w-6 h-6" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="bg-background">
-              <nav className="flex flex-col gap-4 mt-8 text-foreground text-base items-center">
-                <Link to="#features" className="">
-                  Features
-                </Link>
-                <Link to="#pricing" className="">
-                  Pricing
-                </Link>
-                <Link to="#faq" className="">
-                  FAQ
-                </Link>
-                <Button className="mt-6 " onClick={() => navigate("/agents")}>
-                  My Agents
-                </Button>
+            <SheetContent
+              side="right"
+              className="bg-background p-6 w-[75vw] sm:w-[50vw]"
+            >
+              <nav className="flex flex-col gap-6 mt-6 text-foreground text-base">
+                <Link to="/docs">Docs</Link>
+                <a href="#pricing">Pricing</a>
+                <Link to="/contacts">Contacts</Link>
+
+                {isSignedIn ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      className="w-full mt-4 cursor-pointer"
+                      onClick={() => navigate("/agents")}
+                    >
+                      Manage Agents
+                    </Button>
+                    <div className="mt-4">
+                      <UserButton />
+                    </div>
+                  </>
+                ) : (
+                  <div className="mt-4">
+                    <SignInOAuthButton />
+                  </div>
+                )}
               </nav>
             </SheetContent>
           </Sheet>
