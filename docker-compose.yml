@@ -3,6 +3,7 @@ services:
     build:
       context: ./backend/python/runner
     image: telegram-ai-agent
+    container_name: agent-runner
     entrypoint: ["true"]
     env_file:
       - ./backend/python/.env
@@ -39,5 +40,5 @@ services:
     env_file:
       - ./frontend/.env
     ports:
-      - 80:80
+      - 5173:5173
     restart: on-failure
