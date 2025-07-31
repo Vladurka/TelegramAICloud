@@ -4,10 +4,10 @@ import { RabbitMQNotConnectedError } from "../errors/RabbitMQNotConnectedError.j
 let connection;
 let channel;
 
-export const connectRabbitMQ = async (
-  url = "amqp://guest:guest@localhost:5672"
-) => {
+export const connectRabbitMQ = async () => {
   if (connection) return channel;
+
+  const url = `amqp://${process.env.RABBITMQ_USER}:${process.env.RABBITMQ_PASSWORD}@${process.env.RABBITMQ_HOST}:${process.env.RABBITMQ_PORT}`;
 
   try {
     connection = await amqp.connect(url);

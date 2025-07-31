@@ -1,18 +1,8 @@
 services:
-  rabbitmq:
-    image: rabbitmq:3-management
-    container_name: rabbitmq
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-
   runner:
     build:
       context: ./backend/python/runner
-    image: ${DOCKER_IMAGE}
+    image: telegram-ai-agent
     entrypoint: ["true"]
     env_file:
       - ./backend/python/.env
@@ -23,7 +13,6 @@ services:
       context: ./backend/python/consumer
     container_name: agent-consumer
     depends_on:
-      - rabbitmq
       - runner
     env_file:
       - ./backend/python/.env
@@ -35,8 +24,6 @@ services:
     build:
       context: ./backend/javascript
     container_name: backend-server
-    depends_on:
-      - rabbitmq
     env_file:
       - ./backend/javascript/.env
     ports:

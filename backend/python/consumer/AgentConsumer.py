@@ -134,7 +134,14 @@ def delete_agent(ch, method, properties, body):
 
 
 def main():
-    connection = pika.BlockingConnection(pika.ConnectionParameters("localhost"))
+    connection = pika.BlockingConnection(
+        pika.ConnectionParameters(
+            host=os.getenv("RABBITMQ_HOST"),
+            port=int(os.getenv("RABBITMQ_PORT")),
+            virtual_host="/",
+            credentials=pika.PlainCredentials(os.getenv("RABBITMQ_USER"), os.getenv("RABBITMQ_PASSWORD"))
+        )
+    )
     channel = connection.channel()
     channel.queue_declare(queue="create_or_update_agent", durable=True)
     channel.basic_consume(queue="create_or_update_agent", on_message_callback=create_or_update_agent)
