@@ -3,6 +3,8 @@ import { StringSession } from "telegram/sessions/index.js";
 import { User } from "../models/user.model.js";
 import { redis } from "../lib/redis.js";
 
+const key = "temp";
+
 export const sendCode = async (req, res, next) => {
   const { clerkId, apiId, apiHash, phone } = req.body;
 
@@ -23,14 +25,14 @@ export const sendCode = async (req, res, next) => {
       })
     );
 
-    await redis.hset(clerkId, {
+    await redis.hset(`${key}${clerkId}`, {
       apiId: apiId.toString(),
       apiHash: apiHash,
       phone: phone,
       phoneCodeHash: result.phoneCodeHash,
     });
 
-    await redis.expire(clerkId, 15 * 60);
+    await redis.expire(`${key}${clerkId}`, 15 * 60);
 
     res.status(200).json({
       session: client.session.save(),
@@ -89,7 +91,7 @@ export const confirmCode = async (req, res, next) => {
 export const getTempData = async (req, res, next) => {
   const { clerkId } = req.params;
   try {
-    const data = await redis.hgetall(clerkId);
+    const data = await redis.hgetall(`${key}${clerkId}`);
     res.status(200).json({
       apiId: Number(data.apiId),
       apiHash: data.apiHash,

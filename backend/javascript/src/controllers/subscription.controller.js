@@ -35,7 +35,10 @@ export const createSubscription = async (req, res, next) => {
           user: user._id.toString(),
         },
       },
-      success_url: process.env.CLIENT_URL + "/agents",
+      success_url:
+        process.env.NODE_ENV === "production"
+          ? process.env.PROD_CLIENT_URL + "/agents"
+          : process.env.DEV_CLIENT_URL + "/agents",
       cancel_url: process.env.CLIENT_URL + "/agents",
     });
 
@@ -53,15 +56,21 @@ export const createSubscription = async (req, res, next) => {
 };
 
 export const cancelSubscription = async (req, res, next) => {
-  const { containerId } = req.body;
+  const { containerId, clerkId } = req.body;
 
   try {
-    if (!containerId)
-      return res.status(400).json({ error: "containerId is required" });
+    if (!containerId || !clerkId)
+      return res
+        .status(400)
+        .json({ error: "containerId and clerkId are required" });
+
+    const user = await User.findOne({ clerkId });
+    if (!user) return res.status(404).json({ error: "User not found" });
 
     const subscription = await Subscription.findOne({
       containerId,
       status: "active",
+      user: user._id,
     });
 
     if (!subscription)

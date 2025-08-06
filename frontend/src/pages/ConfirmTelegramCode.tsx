@@ -114,9 +114,6 @@ export const ConfirmTelegramCode = () => {
                         <HelpCircle className="w-4 h-4 text-muted-foreground hover:text-primary transition-colors cursor-pointer" />
                       </Link>
                     </div>
-                    <Link to="/docs" target="_blank" rel="noopener noreferrer">
-                      <HelpCircle className="w-4 h-4 text-muted-foreground hover:text-primary transition-colors cursor-pointer" />
-                    </Link>
                   </div>
                   <Input
                     type="number"
