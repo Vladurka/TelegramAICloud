@@ -7,10 +7,8 @@ import {
   buildAgentPayloadFromAgent,
   startAgent,
 } from "../utils/agent.utils.js";
-import { axiosInstance } from "../lib/axios.js";
-import mongoose from "mongoose";
+import { axiosInstance } from "../lib/axios.js"; // ✅ заменён импорт axios
 
-// Stripe Webhook Handler
 export const stripeWebhook = async (req, res) => {
   const sig = req.headers["stripe-signature"];
   console.log("📩 Incoming webhook");
@@ -24,7 +22,7 @@ export const stripeWebhook = async (req, res) => {
     );
     console.log("✅ Webhook verified:", event.type);
   } catch (err) {
-    console.error("❌ Invalid webhook signature:", err);
+    console.error("❌ Invalid webhook signature:", err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -56,132 +54,105 @@ export const stripeWebhook = async (req, res) => {
   }
 };
 
-// Handle successful payment
 async function handlePaymentSucceeded(invoice) {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  const subscriptionId = invoice.parent.subscription_details.subscription;
 
-  try {
-    const subscriptionId = invoice?.subscription;
+  if (!subscriptionId)
+    throw new Error("❗Missing subscriptionId in payment success");
 
-    if (!subscriptionId) {
-      throw new Error("❗Missing subscriptionId in payment success");
-    }
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-    const metadata = subscription.metadata || {};
+  const metadata = subscription.metadata;
 
-    const containerId = metadata.containerId;
-    const userId = metadata.user;
-    const planType = metadata.planType;
-    const stripeCustomerId = subscription.customer;
+  const containerId = metadata.containerId;
+  const stripeCustomerId = subscription.customer;
+  const userId = metadata.user;
+  const planType = metadata.planType;
 
-    if (!containerId || !userId || !planType || !stripeCustomerId) {
-      throw new Error("❗Missing metadata in payment success");
-    }
-
-    const startDate = new Date();
-    const endDate = new Date(startDate);
-    if (planType === "month") endDate.setMonth(startDate.getMonth() + 1);
-    else if (planType === "year")
-      endDate.setFullYear(startDate.getFullYear() + 1);
-
-    const existing = await Subscription.findOne(
-      { stripeSubscriptionId: subscriptionId },
-      null,
-      { session }
-    );
-
-    if (!existing) {
-      await Subscription.create(
-        [
-          {
-            user: userId,
-            containerId: Number(containerId),
-            stripeSubscriptionId: subscription.id,
-            planType,
-            currentPeriodStart: startDate,
-            currentPeriodEnd: endDate,
-            status: subscription.status,
-          },
-        ],
-        { session }
-      );
-      console.log("📦 Created new subscription record");
-    } else {
-      await Subscription.findOneAndUpdate(
-        { stripeSubscriptionId: subscriptionId },
-        {
-          status: "active",
-          currentPeriodStart: startDate,
-          currentPeriodEnd: endDate,
-        },
-        { session }
-      );
-      console.log("🔄 Updated existing subscription");
-    }
-
-    const user = await User.findOne({ stripeCustomerId }, null, { session });
-    if (!user) throw new Error(`❗User with ${stripeCustomerId} is not found`);
-
-    if (!user.currentSubscriptionIds.includes(subscriptionId)) {
-      user.currentSubscriptionIds.push(subscriptionId);
-      await user.save({ session });
-      console.log("👤 Updated user's subscription IDs");
-    }
-
-    const agent = await Agent.findOneAndUpdate(
-      { apiId: Number(containerId) },
-      { status: "active" },
-      { session }
-    );
-    if (!agent) throw new Error(`❗Agent with ${containerId} is not found`);
-
-    const payload = buildAgentPayloadFromAgent(userId, agent);
-    await startAgent(payload);
-    console.log("✅ Agent started for container:", containerId);
-
-    await session.commitTransaction();
-  } catch (error) {
-    if (session.inTransaction()) await session.abortTransaction();
-
-    await axiosInstance.post("/subscription/cancel", {
-      containerId: invoice.metadata?.containerId,
-      clerkId: invoice.metadata?.user,
-    });
-
-    console.error("❌ Error during payment success handling:", error);
-    throw error;
-  } finally {
-    session.endSession();
+  if (!containerId || !stripeCustomerId || !userId || !planType) {
+    throw new Error("❗Missing metadata in payment success");
   }
+
+  const startDate = new Date();
+  const endDate = new Date(startDate);
+
+  if (planType === "month") {
+    endDate.setMonth(startDate.getMonth() + 1);
+  } else if (planType === "year") {
+    endDate.setFullYear(startDate.getFullYear() + 1);
+  }
+
+  const existing = await Subscription.findOne({
+    stripeSubscriptionId: subscriptionId,
+  });
+
+  if (!existing) {
+    await Subscription.create({
+      user: userId,
+      containerId,
+      stripeSubscriptionId: subscription.id,
+      planType,
+      currentPeriodStart: startDate,
+      currentPeriodEnd: endDate,
+      status: subscription.status,
+    });
+    console.log("📦 Created new subscription record");
+  } else {
+    await Subscription.findOneAndUpdate(
+      { stripeSubscriptionId: subscriptionId },
+      {
+        status: "active",
+        currentPeriodStart: startDate,
+        currentPeriodEnd: endDate,
+      }
+    );
+    console.log("🔄 Updated existing subscription");
+  }
+
+  const user = await User.findOne({ stripeCustomerId });
+  if (!user) throw new Error(`❗User with ${stripeCustomerId} not found`);
+
+  if (!user.currentSubscriptionIds.includes(subscriptionId)) {
+    user.currentSubscriptionIds.push(subscriptionId);
+    await user.save();
+    console.log("👤 Updated user's subscription IDs");
+  }
+
+  const agent = await Agent.findOneAndUpdate(
+    { apiId: containerId },
+    { status: "active" }
+  );
+
+  if (!agent) throw new Error(`❗Agent with ${containerId} not found`);
+
+  const payload = buildAgentPayloadFromAgent(userId, agent);
+  await startAgent(payload);
+
+  console.log("✅ Agent started for container:", containerId);
 }
 
 async function handlePaymentFailed(invoice) {
   console.log("⚠️ Handling failed payment:", invoice);
 
   const containerId = invoice.metadata?.containerId;
-  const userId = invoice.metadata?.user;
   const stripeCustomerId = invoice.customer;
 
-  if (!containerId || !stripeCustomerId || !userId) {
-    throw new Error("❗Missing data in failed session");
+  if (!containerId || !stripeCustomerId) {
+    throw new Error(
+      "❗Missing containerId or stripeCustomerId in failed session"
+    );
   }
 
   const exists = await Subscription.findOne({
-    containerId: Number(containerId),
+    containerId,
     status: "active",
-    user: userId,
   });
 
   if (exists) {
-    await Agent.findOneAndUpdate(
-      { apiId: Number(containerId) },
-      { status: "frozen" }
-    );
+    const user = await User.findOne({ stripeCustomerId: stripeCustomerId });
+    if (!user) throw new Error(`❗User with ${stripeCustomerId} not found`);
 
-    const user = await User.findById(userId);
-    if (!user) throw new Error(`❗User with ID ${userId} is not found`);
+    await Agent.findOneAndUpdate({ apiId: containerId }, { status: "frozen" });
 
     await axiosInstance.post("/subscription/cancel", {
       containerId,
@@ -200,13 +171,15 @@ async function handleSubscriptionCanceled(subscription) {
 
   if (!containerId || !stripeCustomerId) {
     throw new Error(
-      "❗Missing containerId or stripeCustomerId in canceled subscription"
+      "❗ Missing containerId or stripeCustomerId in canceled subscription"
     );
   }
 
   await Subscription.findOneAndUpdate(
     { stripeSubscriptionId: subscription.id },
-    { status: subscription.status || "canceled" }
+    {
+      status: subscription.status || "canceled",
+    }
   );
 
   await sendToQueue("delete_agent", { api_id: Number(containerId) });

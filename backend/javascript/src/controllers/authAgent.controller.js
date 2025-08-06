@@ -34,11 +34,16 @@ export const sendCode = async (req, res, next) => {
 
     await redis.expire(`${key}${clerkId}`, 15 * 60);
 
-    res.status(200).json({
+    return res.status(200).json({
       session: client.session.save(),
       phoneCodeHash: result.phoneCodeHash,
     });
   } catch (err) {
+    if (err.message.includes("PHONE_PASSWORD_FLOOD")) {
+      return res
+        .status(429)
+        .json({ error: "Too many requests. Try again later." });
+    }
     next(err);
   }
 };
@@ -61,9 +66,11 @@ export const confirmCode = async (req, res, next) => {
 
     res.json({ ok: true, session: client.session.save() });
   } catch (err) {
-    if (err.errorMessage === "SESSION_PASSWORD_NEEDED") {
+    if (err.errorMessage.includes("SESSION_PASSWORD_NEEDED")) {
       if (!password || typeof password !== "string") {
-        return res.status(401).json({ error: "2FA password required" });
+        return res.status(400).json({
+          error: "2FA password required",
+        });
       }
 
       try {
@@ -71,20 +78,18 @@ export const confirmCode = async (req, res, next) => {
           { apiId, apiHash },
           {
             password: async () => password,
-            onError: (e) => console.error("2FA error:", e),
+            onError: (e) => {
+              throw new Error(e.message);
+            },
           }
         );
 
         res.status(200).json({ ok: true, session: client.session.save() });
       } catch (passErr) {
-        res.status(401).json({
-          error: "Invalid 2FA password",
-          details: passErr.message,
-        });
+        res.status(401).json({ error: "Invalid 2FA password" });
       }
-    } else {
-      next(err);
     }
+    next(err);
   }
 };
 

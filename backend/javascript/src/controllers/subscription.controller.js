@@ -10,6 +10,11 @@ export const createSubscription = async (req, res, next) => {
     const user = await User.findOne({ clerkId });
     if (!user) return res.status(404).json({ error: "User not found" });
 
+    const url =
+      process.env.NODE_ENV === "production"
+        ? process.env.PROD_CLIENT_URL + "/agents"
+        : process.env.DEV_CLIENT_URL + "/agents";
+
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       payment_method_types: ["card"],
@@ -35,11 +40,8 @@ export const createSubscription = async (req, res, next) => {
           user: user._id.toString(),
         },
       },
-      success_url:
-        process.env.NODE_ENV === "production"
-          ? process.env.PROD_CLIENT_URL + "/agents"
-          : process.env.DEV_CLIENT_URL + "/agents",
-      cancel_url: process.env.CLIENT_URL + "/agents",
+      success_url: url,
+      cancel_url: url,
     });
 
     res

@@ -32,13 +32,15 @@ export const useAgentAuthStore = create<AgentAuthStore>((set) => ({
     try {
       set({ isLoading: true, error: null });
       const res = await axiosInstance.post("/auth-agent/sendCode", data);
-      console.log(res.data);
+
       set({
         sessionString: res.data.session,
         phoneHash: res.data.phoneCodeHash,
       });
     } catch (error: any) {
-      set({ error: error.message });
+      const errorMsg = error.response?.data?.error || "Unknown error occurred";
+
+      set({ error: errorMsg });
     } finally {
       set({ isLoading: false });
     }
@@ -55,7 +57,9 @@ export const useAgentAuthStore = create<AgentAuthStore>((set) => ({
       set({ error: "Unexpected response from server" });
       return false;
     } catch (error: any) {
-      set({ error: error.message });
+      const errorMsg = error.response?.data?.error || "Unknown error occurred";
+
+      set({ error: errorMsg });
       return false;
     } finally {
       set({ isLoading: false });

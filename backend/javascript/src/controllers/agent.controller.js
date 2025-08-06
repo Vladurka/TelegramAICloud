@@ -7,11 +7,8 @@ import { encryptAESGCM } from "../utils/hash.utils.js";
 import { Subscription } from "../models/subscription.model.js";
 import { axiosInstance } from "../lib/axios.js";
 import { buildAgentPayloadForUpdate } from "../utils/agent.utils.js";
-import mongoose from "mongoose";
 
 export const createAgent = async (req, res, next) => {
-  const session = await mongoose.startSession();
-
   try {
     const {
       clerkId,
@@ -27,41 +24,33 @@ export const createAgent = async (req, res, next) => {
     } = req.body;
 
     const user = await User.findOne({ clerkId });
-    if (!user) return res.status(404).json({ error: "User is not found" });
+    if (!user) return res.status(404).json({ error: "User not found" });
 
-    session.startTransaction();
-
-    await Agent.create(
-      [
-        {
-          user: user._id,
-          apiId,
-          apiHash,
-          sessionString: encryptAESGCM(sessionString),
-          name: name.trim(),
-          prompt: prompt.trim(),
-          typingTime: typingTime ?? 0,
-          reactionTime: reactionTime ?? 0,
-          model: model.trim(),
-          status: "frozen",
-        },
-      ],
-      { session }
-    );
+    const agent = await Agent.create({
+      user: user._id,
+      apiId: apiId,
+      apiHash: apiHash,
+      sessionString: encryptAESGCM(sessionString),
+      name: name.trim(),
+      prompt: prompt.trim(),
+      typingTime: typingTime ?? 0,
+      reactionTime: reactionTime ?? 0,
+      model: model.trim(),
+      status: "frozen",
+    });
 
     let response;
     try {
       response = await axiosInstance.post("/subscription/create", {
-        clerkId,
+        clerkId: clerkId,
         containerId: apiId,
-        planType,
+        planType: planType,
       });
     } catch (err) {
-      await session.abortTransaction();
+      console.error("Failed to create subscription");
+      await Agent.deleteOne({ _id: agent._id });
       return res.status(500).json({ error: "Failed to create subscription" });
     }
-
-    await session.commitTransaction();
 
     return res.status(200).json({
       message: "Redirect to complete payment to unfreeze agent",
@@ -69,24 +58,20 @@ export const createAgent = async (req, res, next) => {
       status: "frozen",
     });
   } catch (err) {
-    if (session.inTransaction()) await session.abortTransaction();
-
     if (err instanceof MongoServerError && err.code === 11000) {
       return res.status(400).json({ error: "Agent already exists" });
     }
     if (err instanceof MongoNetworkError) {
-      return res
-        .status(503)
-        .json({ error: "Database connection error. Please try again later." });
+      return res.status(503).json({
+        error: "Database connection error. Please try again later.",
+      });
     }
     if (err instanceof RabbitMQNotConnectedError) {
-      return res
-        .status(503)
-        .json({ error: "RabbitMQ is not connected. Please try again later." });
+      return res.status(503).json({
+        error: "RabbitMQ is not connected. Please try again later.",
+      });
     }
     next(err);
-  } finally {
-    session.endSession();
   }
 };
 
@@ -95,20 +80,26 @@ export const unfreezeAgent = async (req, res, next) => {
     const { apiId, clerkId, planType } = req.body;
 
     const user = await User.findOne({ clerkId });
-    if (!user) return res.status(404).json({ error: "User is not found" });
+    if (!user) return res.status(404).json({ error: "User not found" });
 
     const agent = await Agent.findOne({
       apiId,
       user: user._id,
       status: "frozen",
     });
-    if (!agent) return res.status(404).json({ error: "Agent is not found" });
+    if (!agent) return res.status(404).json({ error: "Agent not found" });
 
-    const response = await axiosInstance.post("/subscription/create", {
-      clerkId,
-      containerId: apiId,
-      planType,
-    });
+    let response;
+    try {
+      response = await axiosInstance.post("/subscription/create", {
+        clerkId: clerkId,
+        containerId: apiId,
+        planType: planType,
+      });
+    } catch (err) {
+      console.error("Failed to create subscription");
+      return res.status(500).json({ error: "Failed to create subscription" });
+    }
 
     return res.status(200).json({
       message: "Redirect to complete payment to unfreeze agent",
@@ -117,9 +108,9 @@ export const unfreezeAgent = async (req, res, next) => {
     });
   } catch (err) {
     if (err instanceof MongoNetworkError) {
-      return res
-        .status(503)
-        .json({ error: "Database connection error. Please try again later." });
+      return res.status(503).json({
+        error: "Database connection error. Please try again later.",
+      });
     }
     next(err);
   }
@@ -129,7 +120,7 @@ export const getAgentsByUser = async (req, res, next) => {
   try {
     const { clerkId } = req.params;
     const user = await User.findOne({ clerkId });
-    if (!user) return res.status(404).json({ error: "User is not found" });
+    if (!user) return res.status(404).json({ error: "User not found" });
 
     const agents = await Agent.find({ user: user._id }).select(
       "-_id apiId name status"
@@ -141,16 +132,20 @@ export const getAgentsByUser = async (req, res, next) => {
           containerId: agent.apiId,
           status: "active",
         }).select("planType -_id");
-        return sub ? { ...agent.toObject(), planType: sub.planType } : agent;
+        if (!sub) return agent;
+        return {
+          ...agent.toObject(),
+          planType: sub.planType,
+        };
       })
     );
 
     return res.status(200).json({ agents: agentsWithPlans });
   } catch (err) {
-    if (err instanceof MongoNetworkError) {
-      return res
-        .status(503)
-        .json({ error: "Database connection error. Please try again later." });
+    if (err.name === "MongoNetworkError") {
+      return res.status(503).json({
+        error: "Database connection error. Please try again later.",
+      });
     }
     next(err);
   }
@@ -160,33 +155,33 @@ export const getAgentById = async (req, res, next) => {
   try {
     const { apiId, clerkId } = req.params;
 
-    if (!apiId || isNaN(apiId) || !clerkId) {
+    if (!apiId || isNaN(apiId) || !clerkId)
       return res.status(400).json({ error: "apiId and clerkId are required" });
-    }
 
     const user = await User.findOne({ clerkId });
-    if (!user) return res.status(404).json({ error: "User is not found" });
+    if (!user) return res.status(404).json({ error: "User not found" });
 
-    const agent = await Agent.findOne({
-      apiId: Number(apiId),
-      user: user._id,
-    }).select("-_id name status prompt typingTime reactionTime model");
-    if (!agent) return res.status(404).json({ error: "Agent is not found" });
+    const agent = await Agent.findOne({ apiId, user: user._id }).select(
+      "-_id name status prompt typingTime reactionTime model"
+    );
+    if (!agent) return res.status(404).json({ error: "Agent not found" });
 
     const sub = await Subscription.findOne({
-      containerId: Number(apiId),
+      containerId: apiId,
       status: "active",
     }).select("planType -_id");
 
+    if (!sub) return res.status(200).json({ agent: agent });
+
     const agentObj = agent.toObject();
-    if (sub) agentObj.planType = sub.planType;
+    agentObj.planType = sub.planType;
 
     return res.status(200).json({ agent: agentObj });
   } catch (err) {
     if (err instanceof MongoNetworkError) {
-      return res
-        .status(503)
-        .json({ error: "Database connection error. Please try again later." });
+      return res.status(503).json({
+        error: "Database connection error. Please try again later.",
+      });
     }
     next(err);
   }
@@ -197,10 +192,10 @@ export const updateAgent = async (req, res, next) => {
     const { clerkId, apiId } = req.body;
 
     const user = await User.findOne({ clerkId });
-    if (!user) return res.status(404).json({ error: "User is not found" });
+    if (!user) return res.status(404).json({ error: "User not found" });
 
     const agent = await Agent.findOne({ apiId, user: user._id });
-    if (!agent) return res.status(404).json({ error: "Agent is not found" });
+    if (!agent) return res.status(404).json({ error: "Agent not found" });
 
     const payload = buildAgentPayloadForUpdate(user._id, req.body, agent);
 
@@ -220,14 +215,14 @@ export const updateAgent = async (req, res, next) => {
     return res.json({ status: "queued", type: "create_or_update_agent" });
   } catch (err) {
     if (err instanceof MongoNetworkError) {
-      return res
-        .status(503)
-        .json({ error: "Database connection error. Please try again later." });
+      return res.status(503).json({
+        error: "Database connection error. Please try again later.",
+      });
     }
     if (err instanceof RabbitMQNotConnectedError) {
-      return res
-        .status(503)
-        .json({ error: "RabbitMQ is not connected. Please try again later." });
+      return res.status(503).json({
+        error: "RabbitMQ is not connected. Please try again later.",
+      });
     }
     next(err);
   }
@@ -240,29 +235,14 @@ export const deleteAgent = async (req, res, next) => {
     return res.status(400).json({ error: "apiId and clerkId are required" });
   }
 
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
-    const user = await User.findOne({ clerkId }).session(session);
-    if (!user) {
-      await session.abortTransaction();
-      return res.status(404).json({ error: "User is not found" });
-    }
+    const user = await User.findOne({ clerkId });
+    if (!user) return res.status(404).json({ error: "User not found" });
 
-    const agent = await Agent.findOne({ apiId, user: user._id }).session(
-      session
-    );
-    if (!agent) {
-      await session.abortTransaction();
-      return res.status(404).json({ error: "Agent is not found" });
-    }
+    const agent = await Agent.findOne({ apiId, user: user._id });
+    if (!agent) return res.status(404).json({ error: "Agent not found" });
 
-    const result = await Agent.deleteOne({ _id: agent._id }).session(session);
-    if (result.deletedCount === 0) {
-      await session.abortTransaction();
-      return res.status(404).json({ error: "Agent is not found" });
-    }
+    await Agent.deleteOne({ _id: agent._id });
 
     try {
       await axiosInstance.post("/subscription/cancel", {
@@ -270,27 +250,25 @@ export const deleteAgent = async (req, res, next) => {
         clerkId,
       });
     } catch (err) {
-      await session.abortTransaction();
+      const agentData = agent.toObject();
+      delete agentData._id;
+      await Agent.create(agentData);
+      console.error("Failed to cancel subscription");
       return res.status(500).json({ error: "Failed to cancel subscription" });
     }
 
-    await session.commitTransaction();
-    return res.json({ status: "deleted", subscription: "canceled" });
+    res.json({ status: "deleted", subscription: "canceled" });
   } catch (err) {
-    if (session.inTransaction()) await session.abortTransaction();
-
     if (err instanceof MongoNetworkError) {
-      return res
-        .status(503)
-        .json({ error: "Database connection error. Please try again later." });
+      return res.status(503).json({
+        error: "Database connection error. Please try again later.",
+      });
     }
     if (err instanceof RabbitMQNotConnectedError) {
-      return res
-        .status(503)
-        .json({ error: "RabbitMQ is not connected. Please try again later." });
+      return res.status(503).json({
+        error: "RabbitMQ is not connected. Please try again later.",
+      });
     }
     next(err);
-  } finally {
-    session.endSession();
   }
 };
