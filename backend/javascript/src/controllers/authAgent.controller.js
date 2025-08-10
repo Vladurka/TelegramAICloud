@@ -25,14 +25,14 @@ export const sendCode = async (req, res, next) => {
       })
     );
 
-    await redis.hset(`${key}${clerkId}`, {
+    await redis.hset(`${key}:${clerkId}`, {
       apiId: apiId.toString(),
       apiHash: apiHash,
       phone: phone,
       phoneCodeHash: result.phoneCodeHash,
     });
 
-    await redis.expire(`${key}${clerkId}`, 15 * 60);
+    await redis.expire(`${key}:${clerkId}`, 15 * 60);
 
     return res.status(200).json({
       session: client.session.save(),
@@ -96,7 +96,7 @@ export const confirmCode = async (req, res, next) => {
 export const getTempData = async (req, res, next) => {
   const { clerkId } = req.params;
   try {
-    const data = await redis.hgetall(`${key}${clerkId}`);
+    const data = await redis.hgetall(`${key}:${clerkId}`);
     res.status(200).json({
       apiId: Number(data.apiId),
       apiHash: data.apiHash,

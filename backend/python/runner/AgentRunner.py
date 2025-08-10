@@ -8,6 +8,7 @@ from telethon.sessions import StringSession
 from telethon.tl.types import Message
 from telethon.errors import FloodWaitError, ChatWriteForbiddenError
 import openai
+import redis.asyncio as redis
 
 load_dotenv()
 
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 class TelegramAIAgent:
     def __init__(self):
+        self.key = "tokens"
         self.api_id = int(os.getenv("API_ID"))
         self.api_hash = os.getenv("API_HASH")
         self.session_string = os.getenv("SESSION_STRING")
@@ -27,12 +29,15 @@ class TelegramAIAgent:
         self.typing_time = float(os.getenv("TYPING_TIME"))  
         self.reaction_time = float(os.getenv("REACTION_TIME"))
         self.model = os.getenv("MODEL")
+        self.token_limit = 1000000
         self.is_active = True
         self.my_id = None
 
         self.client = TelegramClient(StringSession(self.session_string), self.api_id, self.api_hash)
 
         self.openai_client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+        self.redis_client = redis.from_url(os.getenv("REDIS_URL"))
 
     async def _build_context(self, event, limit=4):
         messages = await self.client.get_messages(event.chat_id, limit=limit)
@@ -66,6 +71,24 @@ class TelegramAIAgent:
                 await event.reply("🤖 Assistant started. Ready to help. Send /stop to deactivate.")
                 logger.info("Assistant started by user command.")
 
+    async def increment_user_tokens(self, tokens_used: int):
+        key = f"{self.key}:{self.api_id}"
+        await self.redis_client.incrby(key, tokens_used)
+
+    async def get_user_tokens(self) -> int:
+        key = f"{self.key}:{self.api_id}"
+        val = await self.redis_client.get(key)
+
+        try:
+            tokens = int(val.decode() if isinstance(val, bytes) else val) if val is not None else 0
+        except (ValueError, AttributeError):
+            tokens = 0 
+
+        print(f"Current tokens for {self.api_id}: {tokens}/{self.token_limit}")
+        return tokens
+
+
+
     async def on_new_message(self, event):
         if not self.is_active:
             return
@@ -78,17 +101,20 @@ class TelegramAIAgent:
         logger.info(f"[📩] Message from {sender_name} (ID: {sender_id}): {message}")
 
         try:
-            context = await self._build_context(event)
-            messages = [{"role": "system", "content": self.prompt + "You answer can't be longer than 100 words"}] + context + [
-                {"role": "user", "content": message}
-            ]
+            if(await self.get_user_tokens()) < self.token_limit:
+                context = await self._build_context(event)
+                messages = [{"role": "system", "content": self.prompt + "You answer can't be longer than 100 words"}] + context + [
+                    {"role": "user", "content": message}
+                ]
 
-            response = await self.openai_client.chat.completions.create(
-                model=self.model, 
-                messages=messages,
-                max_tokens=150,
-            )
-            reply = response.choices[0].message.content.strip()
+                response = await self.openai_client.chat.completions.create(
+                    model=self.model, 
+                    messages=messages,
+                    max_tokens=150,
+                )
+                reply = response.choices[0].message.content.strip()
+                total_tokens = response.usage.total_tokens
+                await self.increment_user_tokens(total_tokens)
 
         except Exception as e:
             logger.error(f"OpenAI Error: {e}")

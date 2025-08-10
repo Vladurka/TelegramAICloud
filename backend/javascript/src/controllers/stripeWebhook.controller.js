@@ -7,11 +7,10 @@ import {
   buildAgentPayloadFromAgent,
   startAgent,
 } from "../utils/agent.utils.js";
-import { axiosInstance } from "../lib/axios.js"; // ✅ заменён импорт axios
+import { axiosInstance } from "../lib/axios.js";
 
 export const stripeWebhook = async (req, res) => {
   const sig = req.headers["stripe-signature"];
-  console.log("📩 Incoming webhook");
 
   let event;
   try {
@@ -20,7 +19,6 @@ export const stripeWebhook = async (req, res) => {
       sig,
       process.env.STRIPE_WEBHOOK_SECRET
     );
-    console.log("✅ Webhook verified:", event.type);
   } catch (err) {
     console.error("❌ Invalid webhook signature:", err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -42,9 +40,6 @@ export const stripeWebhook = async (req, res) => {
         console.log("▶️ Handling customer.subscription.deleted");
         await handleSubscriptionCanceled(event.data.object);
         break;
-
-      default:
-        console.log(`⚠️ Unhandled event type: ${event.type}`);
     }
 
     return res.status(200).send("Webhook received");
@@ -132,8 +127,6 @@ async function handlePaymentSucceeded(invoice) {
 }
 
 async function handlePaymentFailed(invoice) {
-  console.log("⚠️ Handling failed payment:", invoice);
-
   const containerId = invoice.metadata?.containerId;
   const stripeCustomerId = invoice.customer;
 
@@ -164,8 +157,6 @@ async function handlePaymentFailed(invoice) {
 }
 
 async function handleSubscriptionCanceled(subscription) {
-  console.log("⚠️ Handling canceled subscription:", subscription);
-
   const containerId = subscription.metadata?.containerId;
   const stripeCustomerId = subscription.customer;
 

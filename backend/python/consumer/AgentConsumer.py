@@ -8,6 +8,7 @@ from Utils import decrypt_aes_gcm
 load_dotenv()
 
 DOCKER_IMAGE = os.getenv("DOCKER_IMAGE")
+REDIS_URL = os.getenv("REDIS_URL")
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 
 docker_client = docker.from_env()
@@ -36,7 +37,6 @@ def validate_agent_data(data):
 
 def run_agent_container(api_id, api_hash, session_string, prompt, typing_time, reaction_time, model, name):
     container_name = f"agent_{api_id}"
-    print(f"[INFO] Attempting to start agent container: {container_name}")
 
     try:
         existing_container = docker_client.containers.get(container_name)
@@ -51,12 +51,14 @@ def run_agent_container(api_id, api_hash, session_string, prompt, typing_time, r
         return
 
     try:
+        print(OPENAI_KEY)
         container = docker_client.containers.run(
             image=DOCKER_IMAGE,
             name=container_name,
             command=["python", "AgentRunner.py"],
             environment={
                 "OPENAI_API_KEY": OPENAI_KEY,
+                "REDIS_URL": REDIS_URL,
                 "API_ID": str(api_id),
                 "API_HASH": api_hash,
                 "SESSION_STRING": decrypt_aes_gcm(session_string),
