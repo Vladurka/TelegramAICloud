@@ -107,6 +107,7 @@ async function handlePaymentSucceeded(invoice) {
   const user = await User.findOne({ stripeCustomerId });
   if (!user) throw new Error(`❗User with ${stripeCustomerId} not found`);
 
+  user.currentSubscriptionIds = user.currentSubscriptionIds || [];
   if (!user.currentSubscriptionIds.includes(subscriptionId)) {
     user.currentSubscriptionIds.push(subscriptionId);
     await user.save();
