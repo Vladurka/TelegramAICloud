@@ -27,8 +27,8 @@ services:
     container_name: backend-server
     env_file:
       - ./backend/javascript/.env
-    ports:
-      - 5000:5000
+    expose:
+      - 5000
     restart: on-failure
 
   client:
@@ -37,8 +37,17 @@ services:
     container_name: frontend-client
     depends_on:
       - server
-    env_file:
-      - ./frontend/.env
+    restart: on-failure
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    depends_on:
+      - server
+      - client
     ports:
       - 80:80
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
     restart: on-failure
