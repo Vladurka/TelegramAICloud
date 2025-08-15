@@ -1,15 +1,18 @@
-FROM node:22-alpine
-
+FROM node:22-alpine AS build
 WORKDIR /app
 
 COPY package*.json ./
-
-RUN npm install
+RUN npm ci
 
 COPY . .
+RUN npm run build
 
-ENV VITE_ENV=production
+FROM nginx:1.27-alpine
 
-EXPOSE 5173
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-CMD ["npm", "run", "dev"]
+COPY --from=build /app/dist /usr/share/nginx/html
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
