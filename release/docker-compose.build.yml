@@ -2,21 +2,20 @@ services:
   runner:
     build:
       context: ./backend/python/runner
-    image: telegram-ai-agent
-    container_name: agent-runner
+    image: docker.io/vladvez/telegram-ai-agent:${TAG}
     entrypoint: ["true"]
     env_file:
-      - ./backend/python/.env
+      - ./env/python.env
     restart: on-failure
 
   consumer:
     build:
       context: ./backend/python/consumer
-    container_name: agent-consumer
+    image: docker.io/vladvez/agent-consumer:${TAG}
     depends_on:
       - runner
     env_file:
-      - ./backend/python/.env
+      - ./env/python.env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     restart: on-failure
@@ -24,9 +23,9 @@ services:
   server:
     build:
       context: ./backend/javascript
-    container_name: backend-server
+    image: docker.io/vladvez/backend-server:${TAG}
     env_file:
-      - ./backend/javascript/.env
+      - ./env/javascript.env
     expose:
       - "5000"
     restart: on-failure
@@ -35,7 +34,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: nginx
+    image: docker.io/vladvez/nginx-fe:${TAG}
     depends_on:
       - server
     ports:
