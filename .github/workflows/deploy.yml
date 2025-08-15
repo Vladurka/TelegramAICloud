@@ -1,0 +1,75 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    env:
+      REGISTRY_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+      REGISTRY_PASS: ${{ secrets.DOCKERHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose
+
+      - name: Create env files for backend
+        run: |
+          mkdir -p release/env
+          echo "${{ secrets.PYTHON_ENV }}" > release/env/python.env
+          echo "${{ secrets.JAVASCRIPT_ENV }}" > release/env/javascript.env
+
+      - name: Create frontend .env
+        run: |
+          echo "${{ secrets.FRONTEND_ENV }}" > frontend/.env
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.REGISTRY_USER }}
+          password: ${{ env.REGISTRY_PASS }}
+
+      - name: Build images
+        run: |
+          docker-compose -f docker-compose.build.yml build --pull
+
+      - name: Push images
+        run: |
+          docker-compose -f docker-compose.build.yml push
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    env:
+      REGISTRY_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+      REGISTRY_PASS: ${{ secrets.DOCKERHUB_TOKEN }}
+      SERVER_HOST: ${{ secrets.SERVER_HOST }}
+      SERVER_USER: ${{ secrets.SERVER_USER }}
+      SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+      SERVER_APP_DIR: "/root/tg-ai-cloud/release"
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.SERVER_HOST }}
+          username: ${{ env.SERVER_USER }}
+          key: ${{ env.SERVER_SSH_KEY }}
+          script: |
+            set -e
+            echo "Login to registry"
+            echo "${{ env.REGISTRY_PASS }}" | docker login -u "${{ env.REGISTRY_USER }}" --password-stdin
+
+            mkdir -p "${{ env.SERVER_APP_DIR }}/env"
+            echo "${{ secrets.PYTHON_ENV }}" > "${{ env.SERVER_APP_DIR }}/env/python.env"
+            echo "${{ secrets.JAVASCRIPT_ENV }}" > "${{ env.SERVER_APP_DIR }}/env/javascript.env"
+
+            cd "${{ env.SERVER_APP_DIR }}"
+            docker-compose -f docker-compose.deploy.yml down
+            docker-compose -f docker-compose.deploy.yml pull
+            docker-compose -f docker-compose.deploy.yml up -d
+            docker image prune -f
