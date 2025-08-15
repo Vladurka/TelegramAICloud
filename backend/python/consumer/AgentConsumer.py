@@ -2,6 +2,7 @@ import json
 import pika
 import docker
 import os
+import logging
 from dotenv import load_dotenv
 from Utils import decrypt_aes_gcm
 
@@ -12,6 +13,14 @@ REDIS_URL = os.getenv("REDIS_URL")
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 
 docker_client = docker.from_env()
+
+logging.basicConfig(
+    level=logging.INFO,  
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.StreamHandler() 
+    ]
+)
 
 def validate_agent_data(data):
     required_fields = [
@@ -40,18 +49,17 @@ def run_agent_container(api_id, api_hash, session_string, prompt, typing_time, r
 
     try:
         existing_container = docker_client.containers.get(container_name)
-        print(f"[INFO] Stopping existing container: {container_name}")
+        logging.info(f"Stopping existing container: {container_name}")
         existing_container.stop()
-        print(f"[INFO] Removing existing container: {container_name}")
+        logging.info(f"Removing existing container: {container_name}")
         existing_container.remove()
     except docker.errors.NotFound:
         pass
     except Exception as e:
-        print(f"[ERROR] Unexpected error while checking container existence: {e}")
+        logging.error(f"Unexpected error while checking container existence: {e}")
         return
 
     try:
-        print(OPENAI_KEY)
         container = docker_client.containers.run(
             image=DOCKER_IMAGE,
             name=container_name,
@@ -71,9 +79,9 @@ def run_agent_container(api_id, api_hash, session_string, prompt, typing_time, r
             detach=True,
             restart_policy={"Name": "on-failure"}
         )
-        print(f"[INFO] Agent container '{container_name}' started successfully (ID: {container.id})")
+        logging.info(f"Agent container '{container_name}' started successfully (ID: {container.id})")
     except Exception as e:
-        print(f"[ERROR] Failed to start agent container: {e}")
+        logging.error(f"Failed to start agent container: {e}")
 
 
 def create_or_update_agent(ch, method, properties, body):
@@ -94,15 +102,15 @@ def create_or_update_agent(ch, method, properties, body):
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
     except ValueError as ve:
-        print(f"[VALIDATION ERROR] {ve}")
+        logging.warning(f"Validation error: {ve}")
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
     except Exception as e:
-        print(f"[ERROR] Failed to start agent: {e}")
+        logging.error(f"Failed to start agent: {e}")
         ch.basic_nack(delivery_tag=method.delivery_tag)
 
 
 def delete_agent(ch, method, properties, body):
-    container_name = None 
+    container_name = None
     try:
         data = json.loads(body)
 
@@ -112,26 +120,25 @@ def delete_agent(ch, method, properties, body):
             raise ValueError("Missing or empty required field: api_id")
 
         container_name = f"agent_{api_id}"
-        print(f"[INFO] Stopping and removing agent container: {container_name}")
-        
+        logging.info(f"Stopping and removing agent container: {container_name}")
+
         existing = docker_client.containers.get(container_name)
         existing.stop()
         existing.remove()
 
-        print(f"[INFO] Agent container '{container_name}' deleted successfully")
-
+        logging.info(f"Agent container '{container_name}' deleted successfully")
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
     except docker.errors.NotFound:
-        print(f"[INFO] Agent container {container_name or '[unknown]'} not found.")
+        logging.info(f"Agent container {container_name or '[unknown]'} not found.")
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
     except ValueError as ve:
-        print(f"[VALIDATION ERROR] {ve}")
+        logging.warning(f"Validation error: {ve}")
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
     except Exception as e:
-        print(f"[ERROR] Failed to delete agent: {e}")
+        logging.error(f"Failed to delete agent: {e}")
         ch.basic_nack(delivery_tag=method.delivery_tag)
 
 
@@ -148,9 +155,8 @@ def main():
     channel.queue_declare(queue="create_or_update_agent", durable=True)
     channel.basic_consume(queue="create_or_update_agent", on_message_callback=create_or_update_agent)
     channel.queue_declare(queue="delete_agent", durable=True)
-    channel.basic_consume(queue="delete_agent", 
-    on_message_callback=delete_agent)
-    print("[*] Waiting for new account data...")
+    channel.basic_consume(queue="delete_agent", on_message_callback=delete_agent)
+    logging.info("Waiting for new account data...")
     channel.start_consuming()
 
 if __name__ == "__main__":
