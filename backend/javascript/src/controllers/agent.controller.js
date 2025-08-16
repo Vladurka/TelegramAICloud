@@ -39,28 +39,22 @@ export const createAgent = async (req, res, next) => {
       status: "frozen",
     });
 
-    if (process.env.NODE_ENV !== "test") {
-      let response;
-      try {
-        response = await axiosInstance.post("/subscription/create", {
-          clerkId: clerkId,
-          containerId: apiId,
-          planType: planType,
-        });
-      } catch (err) {
-        console.error("Failed to create subscription");
-        await Agent.deleteOne({ _id: agent._id });
-        return res.status(500).json({ error: "Failed to create subscription" });
-      }
-      return res.status(200).json({
-        message: "Redirect to complete payment to unfreeze agent",
-        url: response.data.url,
-        status: "frozen",
+    let response;
+    try {
+      response = await axiosInstance.post("/subscription/create", {
+        clerkId: clerkId,
+        containerId: apiId,
+        planType: planType,
       });
+    } catch (err) {
+      console.error("Failed to create subscription");
+      await Agent.deleteOne({ _id: agent._id });
+      return res.status(500).json({ error: "Failed to create subscription" });
     }
-
     return res.status(200).json({
-      message: "Test agent created successfully",
+      message: "Redirect to complete payment to unfreeze agent",
+      url: response.data.url,
+      status: "frozen",
     });
   } catch (err) {
     if (err.code === 11000) {
@@ -94,28 +88,22 @@ export const unfreezeAgent = async (req, res, next) => {
     });
     if (!agent) return res.status(404).json({ error: "Agent not found" });
 
-    if (process.env.NODE_ENV !== "test") {
-      let response;
-      try {
-        response = await axiosInstance.post("/subscription/create", {
-          clerkId: clerkId,
-          containerId: apiId,
-          planType: planType,
-        });
-      } catch (err) {
-        console.error("Failed to create subscription");
-        return res.status(500).json({ error: "Failed to create subscription" });
-      }
-
-      return res.status(200).json({
-        message: "Redirect to complete payment to unfreeze agent",
-        url: response.data.url,
-        status: "frozen",
+    let response;
+    try {
+      response = await axiosInstance.post("/subscription/create", {
+        clerkId: clerkId,
+        containerId: apiId,
+        planType: planType,
       });
+    } catch (err) {
+      console.error("Failed to create subscription");
+      return res.status(500).json({ error: "Failed to create subscription" });
     }
 
     return res.status(200).json({
-      message: "Test agent unfreeze request received successfully",
+      message: "Redirect to complete payment to unfreeze agent",
+      url: response.data.url,
+      status: "frozen",
     });
   } catch (err) {
     if (err instanceof MongoNetworkError) {
@@ -226,9 +214,7 @@ export const updateAgent = async (req, res, next) => {
       }
     );
 
-    if (process.env.NODE_ENV !== "test") {
-      await sendToQueue("create_or_update_agent", payload);
-    }
+    await sendToQueue("create_or_update_agent", payload);
 
     return res.json({ status: "queued", type: "create_or_update_agent" });
   } catch (err) {
@@ -262,33 +248,24 @@ export const deleteAgent = async (req, res, next) => {
 
     await Agent.deleteOne({ _id: agent._id });
 
-    let subscriptionStatus = "skipped (test env)";
-    if (process.env.NODE_ENV !== "test") {
-      try {
-        await axiosInstance.post("/subscription/cancel", {
-          containerId: apiId,
-          clerkId,
-        });
-        subscriptionStatus = "canceled";
-      } catch (err) {
-        const agentData = agent.toObject();
-        delete agentData._id;
-        await Agent.create(agentData);
-        console.error("Failed to cancel subscription");
-        return res.status(500).json({ error: "Failed to cancel subscription" });
-      }
+    try {
+      await axiosInstance.post("/subscription/cancel", {
+        containerId: apiId,
+        clerkId,
+      });
+    } catch (err) {
+      const agentData = agent.toObject();
+      delete agentData._id;
+      await Agent.create(agentData);
+      console.error("Failed to cancel subscription");
+      return res.status(500).json({ error: "Failed to cancel subscription" });
     }
 
-    return res.json({ status: "deleted", subscription: subscriptionStatus });
+    return res.json({ status: "deleted", subscription: "canceled" });
   } catch (err) {
     if (err instanceof MongoNetworkError) {
       return res.status(503).json({
         error: "Database connection error. Please try again later.",
-      });
-    }
-    if (err instanceof RabbitMQNotConnectedError) {
-      return res.status(503).json({
-        error: "RabbitMQ is not connected. Please try again later.",
       });
     }
     next(err);

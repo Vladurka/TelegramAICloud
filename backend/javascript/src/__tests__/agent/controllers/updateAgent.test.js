@@ -1,5 +1,4 @@
 import request from "supertest";
-import app from "../../../../index.js";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { connectTestDB, disconnectTestDB } from "../../../lib/testDb.js";
 import {
@@ -10,6 +9,17 @@ import {
 } from "../../../utils/test.utils.js";
 import { User } from "../../../models/user.model.js";
 import { Agent } from "../../../models/agent.model.js";
+import { RabbitMQNotConnectedError } from "../../../errors/RabbitMQNotConnectedError.js";
+import { afterEach, jest } from "@jest/globals";
+
+jest.unstable_mockModule("../../../lib/rabbitmq.js", () => ({
+  connectRabbitMQ: jest.fn(),
+  sendToQueue: jest.fn(),
+  closeConnection: jest.fn(),
+}));
+
+const { sendToQueue } = await import("../../../lib/rabbitmq.js");
+const { default: app } = await import("../../../../index.js");
 
 let mongoServer;
 let user;
@@ -26,10 +36,6 @@ beforeEach(async () => {
 
   user = await createTestUser(createClerkId());
   agent = await createTestAgent(user._id, createApiId());
-});
-
-afterAll(async () => {
-  await disconnectTestDB();
 });
 
 describe("UPDATE /api/agent", () => {
@@ -51,10 +57,6 @@ describe("UPDATE /api/agent", () => {
     });
 
     expect(res.statusCode).toBe(200);
-    expect(res.body).toMatchObject({
-      status: "queued",
-      type: "create_or_update_agent",
-    });
 
     const updated = await Agent.findOne({ _id: agent._id });
     expect(updated).toBeTruthy();
@@ -63,6 +65,18 @@ describe("UPDATE /api/agent", () => {
     expect(updated.typingTime).toBe(newTyping);
     expect(updated.reactionTime).toBe(newReaction);
     expect(updated.model).toBe(newModel.trim());
+
+    expect(sendToQueue).toHaveBeenCalledTimes(1);
+    expect(sendToQueue).toHaveBeenCalledWith(
+      "create_or_update_agent",
+      expect.objectContaining({
+        name: newName.trim(),
+        prompt: newPrompt.trim(),
+        model: newModel.trim(),
+        typing_time: newTyping,
+        reaction_time: newReaction,
+      })
+    );
   });
 
   it("should return 404 when user not found", async () => {
@@ -73,6 +87,7 @@ describe("UPDATE /api/agent", () => {
     });
     expect(res.statusCode).toBe(404);
     expect(res.body).toMatchObject({ error: "User not found" });
+    expect(sendToQueue).not.toHaveBeenCalled();
   });
 
   it("should return 404 when agent not found", async () => {
@@ -83,5 +98,27 @@ describe("UPDATE /api/agent", () => {
     });
     expect(res.statusCode).toBe(404);
     expect(res.body).toMatchObject({ error: "Agent not found" });
+    expect(sendToQueue).not.toHaveBeenCalled();
   });
+
+  it("returns 503 when RabbitMQ is not connected", async () => {
+    sendToQueue.mockRejectedValue(new RabbitMQNotConnectedError());
+
+    const res = await request(app).put("/api/agent").send({
+      clerkId: user.clerkId,
+      apiId: agent.apiId,
+      name: "X",
+    });
+
+    expect(sendToQueue).toHaveBeenCalledTimes(1);
+    expect(res.statusCode).toBe(503);
+  });
+});
+
+afterEach(() => {
+  jest.clearAllMocks();
+});
+
+afterAll(async () => {
+  await disconnectTestDB();
 });
