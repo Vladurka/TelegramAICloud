@@ -13,8 +13,6 @@ import {
 
 const router = express.Router();
 
-// router.use(protectRoute);
-
 router.post("/sendCode", validateRequest(sendCodeSchema), sendCode);
 router.post("/confirmCode", validateRequest(confirmCodeSchema), confirmCode);
 router.get("/:clerkId", getTempData);

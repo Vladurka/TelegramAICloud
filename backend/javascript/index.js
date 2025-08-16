@@ -57,6 +57,8 @@ export default app;
 
 app.listen(port, () => {
   console.log(`🚀 Server running at http://localhost:${port}`);
-  connectDB();
-  connectRabbitMQ();
+  if (process.env.NODE_ENV !== "test") {
+    connectDB();
+    connectRabbitMQ();
+  }
 });

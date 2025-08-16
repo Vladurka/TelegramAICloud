@@ -18,8 +18,6 @@ import { createSubSchema } from "../validation/subscription.validation.js";
 
 const router = express.Router();
 
-// router.use(protectRoute);
-
 router.post("/", validateRequest(createAgentSchema), createAgent);
 router.post("/unfreeze", validateRequest(createSubSchema), unfreezeAgent);
 router.get("/getByUser/:clerkId", getAgentsByUser);
