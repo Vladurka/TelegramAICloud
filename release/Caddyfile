@@ -1,0 +1,8 @@
+telegramaicloud.space {
+    encode zstd gzip
+    reverse_proxy nginx:80
+}
+
+www.telegramaicloud.space {
+    redir https://telegramaicloud.space{uri} permanent
+}
