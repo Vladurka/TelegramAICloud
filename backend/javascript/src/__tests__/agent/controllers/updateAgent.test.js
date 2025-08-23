@@ -121,4 +121,5 @@ afterEach(() => {
 
 afterAll(async () => {
   await disconnectTestDB();
+  await mongoServer?.stop();
 });

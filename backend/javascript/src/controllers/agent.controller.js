@@ -65,11 +65,6 @@ export const createAgent = async (req, res, next) => {
         error: "Database connection error. Please try again later.",
       });
     }
-    if (err instanceof RabbitMQNotConnectedError) {
-      return res.status(503).json({
-        error: "RabbitMQ is not connected. Please try again later.",
-      });
-    }
     next(err);
   }
 };

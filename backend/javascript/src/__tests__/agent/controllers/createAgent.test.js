@@ -1,7 +1,9 @@
 import request from "supertest";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { connectTestDB, disconnectTestDB } from "../../../lib/testDb.js";
+import { MongoNetworkError } from "mongodb";
 import { Agent } from "../../../models/agent.model.js";
+import { User } from "../../../models/user.model.js";
 import {
   createClerkId,
   createApiId,
@@ -138,6 +140,30 @@ describe("POST /api/agent", () => {
     const rolledBack = await Agent.findOne({ apiId });
     expect(rolledBack).toBeNull();
   });
+
+  it("should return 503 if connections with db is lost", async () => {
+    jest
+      .spyOn(User, "findOne")
+      .mockRejectedValueOnce(new MongoNetworkError("lost"));
+
+    const res = await request(app)
+      .post("/api/agent")
+      .send({
+        clerkId: testUser.clerkId,
+        apiId: createApiId(),
+        apiHash: createString(35),
+        sessionString: createString(205),
+        prompt: testAgent.prompt,
+        name: testAgent.name,
+        typingTime: testAgent.typingTime,
+        reactionTime: testAgent.reactionTime,
+        model: testAgent.model,
+        planType: "year",
+      });
+
+    expect(axiosInstance.post).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(503);
+  });
 });
 
 afterEach(() => {
@@ -146,4 +172,5 @@ afterEach(() => {
 
 afterAll(async () => {
   await disconnectTestDB();
+  await mongoServer?.stop();
 });

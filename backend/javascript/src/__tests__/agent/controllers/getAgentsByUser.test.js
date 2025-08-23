@@ -42,4 +42,5 @@ describe("GET /api/agent/getByUser", () => {
 
 afterAll(async () => {
   await disconnectTestDB();
+  await mongoServer?.stop();
 });

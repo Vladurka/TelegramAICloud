@@ -55,10 +55,10 @@ app.use((error, req, res, next) => {
 
 export default app;
 
-app.listen(port, () => {
-  console.log(`🚀 Server running at http://localhost:${port}`);
-  if (process.env.NODE_ENV !== "test") {
+if (process.env.NODE_ENV !== "test") {
+  app.listen(port, () => {
+    console.log(`🚀 Server running at http://localhost:${port}`);
     connectDB();
     connectRabbitMQ();
-  }
-});
+  });
+}
